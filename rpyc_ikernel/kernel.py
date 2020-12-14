@@ -11,9 +11,9 @@ job schedulers.
 import argparse
 import logging
 import os
-import time
+import traceback
 import rpyc
-import pexpect
+import sys
 
 try:
     from pexpect import spawn as pexpect_spawn
@@ -29,7 +29,7 @@ except ImportError:
 from ipykernel.ipkernel import IPythonKernel
 
 # Blend in with the notebook logging
-def _setup_logging(verbose=logging.DEBUG):
+def _setup_logging(verbose=logging.INFO):
 
     log = logging.getLogger("rpyc_ikernel")
     log.setLevel(verbose)
@@ -78,34 +78,40 @@ class RPycKernel(IPythonKernel):
     def __init__(self, **kwargs):
         IPythonKernel.__init__(self, **kwargs)
         self.log = _setup_logging()
-        self.host = "localhost"
+        self.host = "172.20.152.133"
+        self.remote = None
         self.do_connect()
 
     def do_connect(self):
         try:
-            self.remote = rpyc.classic.connect(self.host)
+            if self.remote == None or self.remote.closed:
+                self.remote = rpyc.classic.connect(self.host)
             # self.remote_exec = rpyc.async_(self.remote.modules.builtins.exec)
         except Exception as e:
-            self.log.info(e)
-            raise e
+            self.log.info('%s on Remote IP: %s' % (e, self.host))
 
     def do_execute(self, code, silent, store_history=True, user_expressions=None, allow_stdin=False):
-        self.log.info(code)
+        self.log.debug(code)
         try:
-            with rpyc.classic.redirected_stdio(self.remote):
+            self.do_connect()
+            if self.remote is not None:
                 try:
-                    self.remote.modules.builtins.exec(code)
+                    with rpyc.classic.redirected_stdio(self.remote):
+                        self.remote.execute(code)
                 except KeyboardInterrupt as e:
                     # self.remote.modules.sys.stdout.write("\x03")
-                    self.remote.modules.builtins.exit(1) # not sys
+                    # self.remote.modules.builtins.exit(1) # not sys
+                    self.remote.execute("raise KeyboardInterrupt")
+                    self.log.info(self.remote.modules.sys.exc_info())
                     # self.remote.modules.os._exit(0) # stop remote shell
-                    self.log.info(e)
         except EOFError as e:
-            self.log.error(e)
             self.do_connect()
+            # self.log.info(sys.exc_info())
         except Exception as e:
             self.log.error(e)
-            
+            self.do_connect()
+            # raise e
+
         return {
                 'status': 'ok', 
                 'execution_count': self.execution_count, 
