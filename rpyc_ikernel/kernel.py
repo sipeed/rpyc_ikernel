@@ -105,11 +105,10 @@ class RPycKernel(IPythonKernel):
                     self.log.info(self.remote.modules.sys.exc_info())
                     # self.remote.modules.os._exit(0) # stop remote shell
         except EOFError as e:
-            self.do_connect()
+            self.log.debug(e)
             # self.log.info(sys.exc_info())
         except Exception as e:
             self.log.error(e)
-            self.do_connect()
             # raise e
 
         return {
