@@ -1,0 +1,12 @@
+#!/usr/bin/env python
+"""
+rpyc_ikernel
+
+Entry point to the remote_kernel command.
+"""
+
+
+import runpy
+
+# the same as running python -m rpyc_ikernel
+runpy.run_module('rpyc_ikernel')
