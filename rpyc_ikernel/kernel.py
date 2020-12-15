@@ -97,7 +97,7 @@ class RPycKernel(IPythonKernel):
             self.log.info('%s on Remote IP: %s' % (e, self.remote_address))
 
     def connect_remote(self, address="localhost"):
-        self.remote_address = "localhost"
+        self.remote_address = address
         self.do_reconnect(True)
 
     def do_execute(self, code, silent, store_history=True, user_expressions=None, allow_stdin=False):
