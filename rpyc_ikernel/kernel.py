@@ -79,7 +79,7 @@ class RPycKernel(IPythonKernel):
     def __init__(self, **kwargs):
         IPythonKernel.__init__(self, **kwargs)
         self.log = _setup_logging()
-        self.host = "172.20.152.133"
+        self.host = "localhost"
         self.remote = None
         self.do_connect()
 
@@ -116,7 +116,13 @@ class RPycKernel(IPythonKernel):
                 _async_raise(task.ident, SystemExit)
 
     def do_execute(self, code, silent, store_history=True, user_expressions=None, allow_stdin=False):
+        if not code.strip():
+            return {'status': 'ok', 'execution_count': self.execution_count,
+                    'payload': [], 'user_expressions': {}}
+        
         self.log.debug(code)
+        
+        interrupted = False
         try:
             try:
                 self.do_connect()
@@ -124,6 +130,7 @@ class RPycKernel(IPythonKernel):
                     with rpyc.classic.redirected_stdio(self.remote):
                         self.remote.execute(code)
             except (KeyboardInterrupt, SystemExit) as e:
+                interrupted = True
                 self.log.error('\r\nTraceback (most recent call last):\r\n  File "<string>", line 1, in <module>\r\nKeyboardInterrupt\r\n')
                 self.remote.execute("raise KeyboardInterrupt")
                 # self.remote.teleport(RPycKernel.stop_all_task)()
@@ -139,7 +146,22 @@ class RPycKernel(IPythonKernel):
             # self.log.info(sys.exc_info())
         except Exception as e:
             self.log.error(e)
-            # raise e
+            # # raise e
+            # import traceback, sys
+            # ex_type, ex, tb = sys.exc_info()
+            # error_content = {
+            #     'ename': str(ex_type),
+            #     'evalue': str(e),
+            #     'traceback': traceback.format_exception(ex_type, ex, tb)
+            # }
+            # self.send_response(self.iopub_socket, 'error', error_content)
+
+            # error_content['execution_count'] = self.execution_count
+            # error_content['status'] = 'error'
+            # return error_content
+
+        if interrupted:
+            return {'status': 'abort', 'execution_count': self.execution_count}
 
         return {
                 'status': 'ok', 
