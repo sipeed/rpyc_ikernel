@@ -10,10 +10,11 @@ job schedulers.
 
 import argparse
 import logging
-import os
+import time
 import traceback
 import rpyc
 import sys
+import signal
 
 try:
     from pexpect import spawn as pexpect_spawn
@@ -86,9 +87,33 @@ class RPycKernel(IPythonKernel):
         try:
             if self.remote == None or self.remote.closed:
                 self.remote = rpyc.classic.connect(self.host)
-            # self.remote_exec = rpyc.async_(self.remote.modules.builtins.exec)
+                self.remote_exec = rpyc.async_(self.remote.modules.builtins.exec)
         except Exception as e:
             self.log.info('%s on Remote IP: %s' % (e, self.host))
+
+    def stop_all_task():
+        import inspect
+        import ctypes
+
+        def _async_raise(tid, exctype):
+            """raises the exception, performs cleanup if needed"""
+            tid = ctypes.c_long(tid)
+            if not inspect.isclass(exctype):
+                exctype = type(exctype)
+            res = ctypes.pythonapi.PyThreadState_SetAsyncExc(tid, ctypes.py_object(exctype))
+            if res == 0:
+                raise ValueError("invalid thread id")
+            elif res != 1:
+                # """if it returns a number greater than one, you're in trouble,
+                # and you should call it again with exc=NULL to revert the effect"""
+                ctypes.pythonapi.PyThreadState_SetAsyncExc(tid, None)
+                raise SystemError("PyThreadState_SetAsyncExc failed")
+
+        import threading
+        tasks = threading.enumerate()
+        for task in tasks:
+            if task.isDaemon():
+                _async_raise(task.ident, SystemExit)
 
     def do_execute(self, code, silent, store_history=True, user_expressions=None, allow_stdin=False):
         self.log.debug(code)
@@ -99,11 +124,15 @@ class RPycKernel(IPythonKernel):
                     with rpyc.classic.redirected_stdio(self.remote):
                         self.remote.execute(code)
                 except KeyboardInterrupt as e:
+                    # self.remote.teleport(RPycKernel.stop_all_task)()
+                    # self.log.info(self.remote.modules.threading.enumerate()[:])
                     # self.remote.modules.sys.stdout.write("\x03")
-                    # self.remote.modules.builtins.exit(1) # not sys
+                    # self.remote.modules.builtins.sys.exit() # not sys
                     self.remote.execute("raise KeyboardInterrupt")
-                    self.log.info(self.remote.modules.sys.exc_info())
+                    # self.log.info(self.remote.modules.sys.exc_info())
                     # self.remote.modules.os._exit(0) # stop remote shell
+                    # self.remote.modules.os.popen('kill -9 ' + str(self.remote.modules.os.getpid()))
+                    # self.remote.modules.os.kill(self.remote.modules.os.getpid(), signal.SIGKILL)
         except EOFError as e:
             self.log.debug(e)
             # self.log.info(sys.exc_info())
