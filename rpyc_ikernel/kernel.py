@@ -82,7 +82,7 @@ class RPycKernel(IPythonKernel):
         self.log = _setup_logging()
         self.remote_address = "localhost"
         self.remote = None
-        self.pattern = re.compile(r"\s*# exec[(](.*)[)]")
+        self.pattern = re.compile(r"\s*#\s*exec[(](.*)[)]")
         self.do_reconnect()
     
     def do_reconnect(self, forced=False):
@@ -111,10 +111,9 @@ class RPycKernel(IPythonKernel):
 
         if len(result):
             try:
-                #exec(self.remote_address = "localhost" and self.do_reconnect(True))
+                # exec(self.remote_address = "localhost" and self.do_reconnect(True))
                 for c in result:
-                    exec(c)
-                    # self.log.info(c)
+                    exec(c) # self.log.info(c)
             except Exception as e:
                 self.log.error(e)
                 # return {'status': 'abort', 'execution_count': self.execution_count}
