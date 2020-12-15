@@ -118,21 +118,22 @@ class RPycKernel(IPythonKernel):
     def do_execute(self, code, silent, store_history=True, user_expressions=None, allow_stdin=False):
         self.log.debug(code)
         try:
-            self.do_connect()
-            if self.remote is not None:
-                try:
+            try:
+                self.do_connect()
+                if self.remote is not None:
                     with rpyc.classic.redirected_stdio(self.remote):
                         self.remote.execute(code)
-                except KeyboardInterrupt as e:
-                    # self.remote.teleport(RPycKernel.stop_all_task)()
-                    # self.log.info(self.remote.modules.threading.enumerate()[:])
-                    # self.remote.modules.sys.stdout.write("\x03")
-                    # self.remote.modules.builtins.sys.exit() # not sys
-                    self.remote.execute("raise KeyboardInterrupt")
-                    # self.log.info(self.remote.modules.sys.exc_info())
-                    # self.remote.modules.os._exit(0) # stop remote shell
-                    # self.remote.modules.os.popen('kill -9 ' + str(self.remote.modules.os.getpid()))
-                    # self.remote.modules.os.kill(self.remote.modules.os.getpid(), signal.SIGKILL)
+            except (KeyboardInterrupt, SystemExit) as e:
+                self.log.error('\r\nTraceback (most recent call last):\r\n  File "<string>", line 1, in <module>\r\nKeyboardInterrupt\r\n')
+                self.remote.execute("raise KeyboardInterrupt")
+                # self.remote.teleport(RPycKernel.stop_all_task)()
+                # self.log.info(self.remote.modules.threading.enumerate()[:])
+                # self.remote.modules.sys.stdout.write("\x03")
+                # self.remote.modules.builtins.sys.exit() # not sys
+                # self.log.info(self.remote.modules.sys.exc_info())
+                # self.remote.modules.os._exit(0) # stop remote shell
+                # self.remote.modules.os.popen('kill -9 ' + str(self.remote.modules.os.getpid()))
+                # self.remote.modules.os.kill(self.remote.modules.os.getpid(), signal.SIGKILL)
         except EOFError as e:
             self.log.debug(e)
             # self.log.info(sys.exc_info())
