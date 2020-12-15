@@ -15,6 +15,7 @@ import traceback
 import rpyc
 import sys
 import signal
+import re
 
 try:
     from pexpect import spawn as pexpect_spawn
@@ -79,41 +80,25 @@ class RPycKernel(IPythonKernel):
     def __init__(self, **kwargs):
         IPythonKernel.__init__(self, **kwargs)
         self.log = _setup_logging()
-        self.host = "localhost"
+        self.remote_address = "localhost"
         self.remote = None
-        self.do_connect()
-
-    def do_connect(self):
+        self.pattern = re.compile(r"\s*# exec[(](.*)[)]")
+        self.do_reconnect()
+    
+    def do_reconnect(self, forced=False):
         try:
+            if forced and self.remote:
+                self.remote.close()
+                self.remote = None
             if self.remote == None or self.remote.closed:
-                self.remote = rpyc.classic.connect(self.host)
-                self.remote_exec = rpyc.async_(self.remote.modules.builtins.exec)
+                self.remote = rpyc.classic.connect(self.remote_address)
+                # self.remote_exec = rpyc.async_(self.remote.modules.builtins.exec)
         except Exception as e:
-            self.log.info('%s on Remote IP: %s' % (e, self.host))
+            self.log.info('%s on Remote IP: %s' % (e, self.remote_address))
 
-    def stop_all_task():
-        import inspect
-        import ctypes
-
-        def _async_raise(tid, exctype):
-            """raises the exception, performs cleanup if needed"""
-            tid = ctypes.c_long(tid)
-            if not inspect.isclass(exctype):
-                exctype = type(exctype)
-            res = ctypes.pythonapi.PyThreadState_SetAsyncExc(tid, ctypes.py_object(exctype))
-            if res == 0:
-                raise ValueError("invalid thread id")
-            elif res != 1:
-                # """if it returns a number greater than one, you're in trouble,
-                # and you should call it again with exc=NULL to revert the effect"""
-                ctypes.pythonapi.PyThreadState_SetAsyncExc(tid, None)
-                raise SystemError("PyThreadState_SetAsyncExc failed")
-
-        import threading
-        tasks = threading.enumerate()
-        for task in tasks:
-            if task.isDaemon():
-                _async_raise(task.ident, SystemExit)
+    def connect_remote(self, address="localhost"):
+        self.remote_address = "localhost"
+        self.do_reconnect(True)
 
     def do_execute(self, code, silent, store_history=True, user_expressions=None, allow_stdin=False):
         if not code.strip():
@@ -121,11 +106,23 @@ class RPycKernel(IPythonKernel):
                     'payload': [], 'user_expressions': {}}
         
         self.log.debug(code)
-        
+
+        result = self.pattern.findall(code)
+
+        if len(result):
+            try:
+                #exec(self.remote_address = "localhost" and self.do_reconnect(True))
+                for c in result:
+                    exec(c)
+                    # self.log.info(c)
+            except Exception as e:
+                self.log.error(e)
+                # return {'status': 'abort', 'execution_count': self.execution_count}
+
         interrupted = False
         try:
+            self.do_reconnect()
             try:
-                self.do_connect()
                 if self.remote is not None:
                     with rpyc.classic.redirected_stdio(self.remote):
                         self.remote.execute(code)
@@ -169,3 +166,28 @@ class RPycKernel(IPythonKernel):
                 'payload': [], 
                 'user_expressions': {}
             }
+
+    def stop_all_task():
+        import inspect
+        import ctypes
+
+        def _async_raise(tid, exctype):
+            """raises the exception, performs cleanup if needed"""
+            tid = ctypes.c_long(tid)
+            if not inspect.isclass(exctype):
+                exctype = type(exctype)
+            res = ctypes.pythonapi.PyThreadState_SetAsyncExc(tid, ctypes.py_object(exctype))
+            if res == 0:
+                raise ValueError("invalid thread id")
+            elif res != 1:
+                # """if it returns a number greater than one, you're in trouble,
+                # and you should call it again with exc=NULL to revert the effect"""
+                ctypes.pythonapi.PyThreadState_SetAsyncExc(tid, None)
+                raise SystemError("PyThreadState_SetAsyncExc failed")
+
+        import threading
+        tasks = threading.enumerate()
+        for task in tasks:
+            if task.isDaemon():
+                _async_raise(task.ident, SystemExit)
+
