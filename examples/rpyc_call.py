@@ -1,82 +1,167 @@
-import _thread
-import rpyc
+
 import time
+import sys
+import rpyc
+import timerthread
 
-# remote = rpyc.classic.connect("192.168.43.144")
-# remote = rpyc.classic.connect("172.17.0.2")
+# _async_raise(ident, SystemExit)
+def _async_raise(tid):
+    import inspect, ctypes
+    exctype = KeyboardInterrupt
+    """raises the exception, performs cleanup if needed"""
+    tid = ctypes.c_long(tid)
+    if not inspect.isclass(exctype):
+        exctype = type(exctype)
+    res = ctypes.pythonapi.PyThreadState_SetAsyncExc(tid, ctypes.py_object(exctype))
+    if res == 0:
+        return # maybe thread killed
+        # raise ValueError("invalid thread id")
+    if res != 1:
+        # """if it returns a number greater than one, you're in trouble,
+        # and you should call it again with exc=NULL to revert the effect"""
+        ctypes.pythonapi.PyThreadState_SetAsyncExc(tid, None)
+        raise SystemError("PyThreadState_SetAsyncExc failed")
 
-remote = rpyc.classic.connect("localhost")
+class Machine():
 
-# proc = remote.modules.subprocess.Popen("ls", stdout = -1, stderr = -1)
-# stdout, stderr = proc.communicate()
-# print(stdout.split())
+    def __init__(self, *args, **kwargs):
+        self.remote = None
+        self.address = "localhost"
+        self.timer = None
+        self.do_reconnect()
 
-# remote_list = remote.builtin.range(7)
+    def do_reconnect(self):
+        try:
+            self.remote = rpyc.classic.connect(self.address)
+            self.remote.modules.sys.stdin = sys.stdin
+            self.remote.modules.sys.stdout = sys.stdout
+            self.remote.modules.sys.stderr = sys.stderr
+            # def _remote_exec(code):
+            #     try:
+            #         exec()
+            #     except Exception as e:
+            #         raise e
+            #         # print(repr(e))
+            #         # import traceback
+            #         # traceback.print_exc()
+            # self.remote_exec = rpyc.async_(self.remote.teleport(_remote_exec))
+            # self.remote_exec = rpyc.async_(self.remote.modules.builtins.exec)
+        except Exception as e: # ConnectionRefusedError: [Errno 111] Connection refused
+            self.remote = None
+            print(repr(e))
 
-# remote.execute("print('foo')")
+    def check_connect(self):
+        if self.remote:
+            try:
+                if self.remote.closed:
+                    raise Exception('remote %s closed' % self.address)
+                print('checking...', self.remote.closed)
+                self.remote.ping() # fail raise PingError
+                return True
+            except Exception as e: # PingError
+                print(repr(e))
+                if self.remote != None:
+                    self.remote.close()
+                    self.remote = None
+        self.do_reconnect()
+        return False
 
-print(dir(remote))
+    # @timerthread.task('recur', 0.1)
+    # def _get_images(self, var_name):
+    #     try:
+    #         print(self, var_name)
+    #         if var_name in self.remote.namespace:
+    #             print(self.remote.namespace[var_name])
+    #     except Exception as e:
+    #         print('_get_images Exception', repr(e))
 
-# with rpyc.classic.redirected_stdio(remote):
-#     remote.modules.sys.stdout.write("hello\n")   # will be printed locally
+    # def display(self, var_name):
+    #     self.timer = self._get_images.sched(self=self, var_name=var_name)
+    #     self.timer.start()
 
-    # pt = rpyc.async_(remote.modules.builtins.print)
-    # res = pt("124")
-    # res.wait()
-    # print(res.value)
+    def display(self, var_name, interval=0.05): # 0.05 20 fps
+        # self.log.info(var_name)
+        from threading import Timer
+        if self.remote:
+            def show(self, var_name):
+                try:
+                    print(self.remote.namespace)
+                    if var_name in self.remote.namespace:
+                        print(self.remote.namespace[var_name])
+                except (KeyboardInterrupt, SystemExit) as e:
+                    raise e
+                except Exception as e:
+                    # self.log.debug(e)
+                    if self.timer:
+                        self.timer.cancel()
+                    raise e
+                self.timer = Timer(interval, show, args=(self, var_name))
+                self.timer.start()
+            if self.timer:
+                self.timer.cancel()
+            self.timer = Timer(interval, show, args=(self, var_name))
+            self.timer.start()
 
-# try:
-    
-# except Exception as e:
-#     print(e)
+    def kill_task(self):
+        master = rpyc.classic.connect(self.address)
+        thread = master.modules.threading
+        # print(thread.enumerate()) # kill remote's thread
+        kills = [i.ident for i in thread.enumerate() if i.ident not in [thread.main_thread().ident, thread.get_ident()]]
+        # print(kills)
+        for id in kills:
+            try:
+                master.teleport(_async_raise)(id)
+            except Exception as e:
+                print('teleport Exception', repr(e))
+        # print(master.modules.threading.enumerate())
+        master.close()
 
-# pt = rpyc.async_(remote.modules.builtins.print)
-# res = pt("124")
-# res.wait()
-# print(res.value)
-# print(dir(res))
+    def do_execute(self, code):
+        if self.check_connect():
+            try:
+                try:
+                    # with rpyc.classic.redirected_stdio(self.remote):
+                    #     self.remote.execute(code)
+                    self.remote.execute(code)
+                    # self.remote.modules.builtins.exec(code)
+                    # self.result = self.remote_exec(code)
+                    # # self.result.wait()
+                    # def get_result(result):
+                    #     if result.error:
+                    #         pass # is error
+                    #     print('get_result', result, result.value)
+                    # self.result.add_callback(get_result)
+                    # while self.result.ready == False:
+                    #     time.sleep(1)
+                except KeyboardInterrupt as e:
+                    # self.result.set_expiry(1)
+                    # self.remote.execute("raise KeyboardInterrupt") # maybe raise main_thread Exception
+                    self.kill_task()
+                    print('\r\nTraceback (most recent call last):\r\n  File "<string>", line 1, in <module>\r\nKeyboardInterrupt\r\n')
+                    # raise e
+            except EOFError as e: # remote stream has been closed(cant return info)
+                # self.remote.close() # not close self
+                self.remote.modules.os._exit(233) # should close remote
+            except Exception as e:
+                print('do_execute Exception', repr(e))
 
+code = '''
+import time
+while True:
+    time.sleep(1)
+    tmp = time.asctime()
+    # print(tmp)
+    # 1 / 0
+    pass
+'''
 
-
-# print(remote.modules.builtins.print('1234'))
-# print(remote.modules.sys.stdin.readlines())
-
-# def get_image(filename):
-#     with open(filename, 'rb') as f:
-#         image = f.read()
-#     return image
-    
-# fn = remote.teleport(get_image)
-
-# import imghdr
-# while True:
-#     image = fn("index4-3.png")
-#     image_type = imghdr.what(None, image)
-#     if image_type is None:
-#         raise ValueError("Not a valid image: %s" % image)
-#     print(time.time())
-
-# image_data = base64.b64encode(image).decode('ascii')
-
-# print(remote.execute('import platform\r\n'))
-# while True:
-#     # print(square())
-#     # print(fn())
-#     print(remote.eval('platform.uname()'))
-
-# remote.teleport(lambda: print(sys.version_info))
-
-# images = rpyc.classic.connect("192.168.0.172").modules
-
-# def print_images(threadName, delay):
-#     import time
-#     while True:
-#         print(images.os.getcwd())
-        # time.sleep(delay)
-# try:
-#    _thread.start_new_thread(print_images, ("Thread-2", 0.002, ))
-# except:
-#    print("Error: not")
-
-# while True:
-#     print(repl.os.time())
+if __name__ == '__main__':
+    tmp = Machine()
+    print(code)
+    while True:
+        try:
+            time.sleep(0.2)
+            tmp.do_execute(code)
+        except Exception as e:
+            print(repr(e))
+    # exec(code)

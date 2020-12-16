@@ -70,6 +70,24 @@ def _setup_logging(verbose=logging.INFO):
 
     return log
     
+# _async_raise(ident, SystemExit)
+def _async_raise(tid):
+    import inspect, ctypes
+    exctype = KeyboardInterrupt
+    """raises the exception, performs cleanup if needed"""
+    tid = ctypes.c_long(tid)
+    if not inspect.isclass(exctype):
+        exctype = type(exctype)
+    res = ctypes.pythonapi.PyThreadState_SetAsyncExc(tid, ctypes.py_object(exctype))
+    if res == 0:
+        return # maybe thread killed
+        # raise ValueError("invalid thread id")
+    if res != 1:
+        # """if it returns a number greater than one, you're in trouble,
+        # and you should call it again with exc=NULL to revert the effect"""
+        ctypes.pythonapi.PyThreadState_SetAsyncExc(tid, None)
+        raise SystemError("PyThreadState_SetAsyncExc failed")
+
 class RPycKernel(IPythonKernel):
     implementation = 'rpyc_kernel'
 
@@ -81,30 +99,49 @@ class RPycKernel(IPythonKernel):
     def __init__(self, **kwargs):
         IPythonKernel.__init__(self, **kwargs)
         self.log = _setup_logging()
-        self.remote_address = "localhost"
         self.remote = None
-        self.display = None
+        self.address = None
+        self.timer = None
         self.clear_output = True
         self.pattern = re.compile(r"\s*#\s*exec[(](.*)[)]")
         self.do_reconnect()
     
-    def do_reconnect(self, forced=False):
+    def do_reconnect(self):
         try:
-            if forced and self.remote:
-                self.remote.close()
-                self.remote = None
-            if self.remote == None or self.remote.closed:
-                self.remote = rpyc.classic.connect(self.remote_address)
-                # self.images = rpyc.classic.connect(self.remote_address)
-                # self.remote_exec = rpyc.async_(self.remote.modules.builtins.exec)
-        except Exception as e:
-            self.log.info('%s on Remote IP: %s' % (e, self.remote_address))
+            self.remote = rpyc.classic.connect(self.address)
+            self.remote.modules.sys.stdin = sys.stdin
+            self.remote.modules.sys.stdout = sys.stdout
+            self.remote.modules.sys.stderr = sys.stderr
+            return True
+        except Exception as e: # ConnectionRefusedError: [Errno 111] Connection refused
+            self.remote = None
+            self.log.info('%s on Remote IP: %s' % (repr(e), self.address))
+        return False
+
+    def check_connect(self):
+        if self.remote:
+            try:
+                if self.remote.closed:
+                    raise Exception('remote %s closed' % self.address)
+                self.log.debug('checking...', self.remote.closed)
+                self.remote.ping() # fail raise PingError
+                return True
+            except Exception as e: # PingError
+                # self.log.error(repr(e))
+                if self.remote != None:
+                    self.remote.close()
+                    self.remote = None
+        return self.do_reconnect()
 
     def connect_remote(self, address="localhost"):
-        self.remote_address = address
-        self.do_reconnect(True)
+        self.address = address
+        self.do_reconnect()
 
-    def display_images(self, var_name, interval=0.05): # 0.05 20 fps
+    def _stop_display(self):
+        if self.timer:
+            self.timer.cancel()
+
+    def display(self, var_name, interval=0.05): # 0.05 20 fps
         # self.log.info(var_name)
         if self.remote:
             def show(self, var_name):
@@ -131,15 +168,27 @@ class RPycKernel(IPythonKernel):
                     raise e
                 except Exception as e:
                     self.log.debug(e)
-                    if self.display:
-                        self.display.cancel()
+                    self._stop_display()
                     raise e
-                self.display = Timer(interval, show, args=(self, var_name))
-                self.display.start()
-            if self.display:
-                self.display.cancel()
-            self.display = Timer(interval, show, args=(self, var_name))
-            self.display.start()
+                self.timer = Timer(interval, show, args=(self, var_name))
+                self.timer.start()
+            self._stop_display()
+            self.timer = Timer(interval, show, args=(self, var_name))
+            self.timer.start()
+
+    def kill_task(self):
+        master = rpyc.classic.connect(self.address)
+        thread = master.modules.threading
+        # print(thread.enumerate()) # kill remote's thread
+        kills = [i.ident for i in thread.enumerate() if i.ident not in [thread.main_thread().ident, thread.get_ident()]]
+        # print(kills)
+        for id in kills:
+            try:
+                master.teleport(_async_raise)(id)
+            except Exception as e:
+                self.log.debug('teleport Exception', repr(e))
+        # print(master.modules.threading.enumerate())
+        master.close()
 
     def do_execute(self, code, silent, store_history=True, user_expressions=None, allow_stdin=False):
         if not code.strip():
@@ -147,14 +196,11 @@ class RPycKernel(IPythonKernel):
                     'payload': [], 'user_expressions': {}}
         self.log.debug(code)
 
-        if self.display:
-            self.display.cancel()
-
         result = self.pattern.findall(code)
 
         if len(result):
             try:
-                # exec(self.remote_address = "localhost" and self.do_reconnect(True))
+                # exec(self.address = "localhost" and self.do_reconnect(True))
                 for c in result:
                     exec(c) # self.log.info(c)
             except Exception as e:
@@ -162,49 +208,27 @@ class RPycKernel(IPythonKernel):
                 # return {'status': 'abort', 'execution_count': self.execution_count}
 
         interrupted = False
-        try:
-            self.do_reconnect()
+
+        if self.check_connect():
             try:
-                if self.remote is not None:
-                    with rpyc.classic.redirected_stdio(self.remote):
-                        self.remote.execute(code)
-            except (KeyboardInterrupt, SystemExit) as e:
-                interrupted = True
-                self.log.error('\r\nTraceback (most recent call last):\r\n  File "<string>", line 1, in <module>\r\nKeyboardInterrupt\r\n')
-                self.remote.execute("raise KeyboardInterrupt")
-                # self.remote.teleport(RPycKernel.stop_all_task)()
-                # self.log.info(self.remote.modules.threading.enumerate()[:])
-                # self.remote.modules.sys.stdout.write("\x03")
-                # self.remote.modules.builtins.sys.exit() # not sys
-                # self.log.info(self.remote.modules.sys.exc_info())
-                # self.remote.modules.os._exit(0) # stop remote shell
-                # self.remote.modules.os.popen('kill -9 ' + str(self.remote.modules.os.getpid()))
-                # self.remote.modules.os.kill(self.remote.modules.os.getpid(), signal.SIGKILL)
-        except EOFError as e:
-            self.log.debug(e)
-            # self.log.info(sys.exc_info())
-        except Exception as e:
-            self.log.error(e)
-            # # raise e
-            # import traceback, sys
-            # ex_type, ex, tb = sys.exc_info()
-            # error_content = {
-            #     'ename': str(ex_type),
-            #     'evalue': str(e),
-            #     'traceback': traceback.format_exception(ex_type, ex, tb)
-            # }
-            # self.send_response(self.iopub_socket, 'error', error_content)
+                try:
+                    # with rpyc.classic.redirected_stdio(self.remote):
+                    #     self.remote.execute(code)
+                    self.remote.execute(code)
+                except KeyboardInterrupt as e:
+                    # self.remote.execute("raise KeyboardInterrupt") # maybe raise main_thread Exception
+                    interrupted = True
+                    self._stop_display()
+                    self.kill_task()
+                    self.log.error('\r\nTraceback (most recent call last):\r\n  File "<string>", line 1, in <module>\r\nKeyboardInterrupt\r\n')
+                    # raise e
+            except EOFError as e: # remote stream has been closed(cant return info)
+                # self.remote.close() # not close self
+                self.remote.modules.os._exit(233) # should close remote
+                self.log.debug(e)
+            except Exception as e:
+                self.log.error(e)
 
-            # error_content['execution_count'] = self.execution_count
-            # error_content['status'] = 'error'
-            # return error_content
-
-        # Send standard output
-        # stream_content = {'name': 'stdout', 'text': 'test'}
-        # self.send_response(self.iopub_socket, 'stream', stream_content)
-
-        # self.send_response(self.iopub_socket, 'display_data', RPycKernel.display_data_for_image())
-        
         if interrupted:
             return {'status': 'abort', 'execution_count': self.execution_count}
 
@@ -214,28 +238,3 @@ class RPycKernel(IPythonKernel):
                 'payload': [], 
                 'user_expressions': {}
             }
-
-    def stop_all_task():
-        import inspect
-        import ctypes
-
-        def _async_raise(tid, exctype):
-            """raises the exception, performs cleanup if needed"""
-            tid = ctypes.c_long(tid)
-            if not inspect.isclass(exctype):
-                exctype = type(exctype)
-            res = ctypes.pythonapi.PyThreadState_SetAsyncExc(tid, ctypes.py_object(exctype))
-            if res == 0:
-                raise ValueError("invalid thread id")
-            elif res != 1:
-                # """if it returns a number greater than one, you're in trouble,
-                # and you should call it again with exc=NULL to revert the effect"""
-                ctypes.pythonapi.PyThreadState_SetAsyncExc(tid, None)
-                raise SystemError("PyThreadState_SetAsyncExc failed")
-
-        import threading
-        tasks = threading.enumerate()
-        for task in tasks:
-            if task.isDaemon():
-                _async_raise(task.ident, SystemExit)
-
