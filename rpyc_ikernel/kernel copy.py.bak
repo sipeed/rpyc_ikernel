@@ -177,7 +177,6 @@ def _setup_logging(verbose=logging.INFO):
 
 class RPycKernel(Kernel):
     implementation = 'rpyc_kernel'
-    implementation_version = "0.1.0"
 
     banner = "RPyc Serializer"
 

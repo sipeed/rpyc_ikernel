@@ -72,7 +72,6 @@ def _setup_logging(verbose=logging.INFO):
     
 class RPycKernel(IPythonKernel):
     implementation = 'rpyc_kernel'
-    implementation_version = "0.1.0"
 
     language_info = {'name': 'Python',
                      'codemirror_mode': 'python',
@@ -128,8 +127,10 @@ class RPycKernel(IPythonKernel):
                                 'metadata': {}
                             }
                             self.send_response(self.iopub_socket, 'display_data', content)
+                except (KeyboardInterrupt, SystemExit) as e:
+                    raise e
                 except Exception as e:
-                    self.log.error(e)
+                    self.log.debug(e)
                     if self.display:
                         self.display.cancel()
                     raise e
