@@ -8,6 +8,7 @@ job schedulers.
 
 """
 
+import imghdr, base64, os
 import argparse
 import logging
 import time
@@ -16,6 +17,7 @@ import rpyc
 import sys
 import signal
 import re
+from threading import Timer
 
 try:
     from pexpect import spawn as pexpect_spawn
@@ -82,6 +84,8 @@ class RPycKernel(IPythonKernel):
         self.log = _setup_logging()
         self.remote_address = "localhost"
         self.remote = None
+        self.display = None
+        self.clear_output = True
         self.pattern = re.compile(r"\s*#\s*exec[(](.*)[)]")
         self.do_reconnect()
     
@@ -92,6 +96,7 @@ class RPycKernel(IPythonKernel):
                 self.remote = None
             if self.remote == None or self.remote.closed:
                 self.remote = rpyc.classic.connect(self.remote_address)
+                # self.images = rpyc.classic.connect(self.remote_address)
                 # self.remote_exec = rpyc.async_(self.remote.modules.builtins.exec)
         except Exception as e:
             self.log.info('%s on Remote IP: %s' % (e, self.remote_address))
@@ -100,12 +105,49 @@ class RPycKernel(IPythonKernel):
         self.remote_address = address
         self.do_reconnect(True)
 
+    def display_images(self, var_name, interval=0.05): # 0.05 20 fps
+        # self.log.info(var_name)
+        if self.remote:
+            def show(self, var_name):
+                try:
+                    if var_name in self.remote.namespace:
+                        if self.clear_output:  # used when updating lines printed
+                            self.send_response(self.iopub_socket, 'clear_output', { "wait":True })
+                        # self.log.info('exist: ' + var_name)
+                        image_bytesio = self.remote.namespace[var_name]
+                        if image_bytesio:
+                            # self.log.info(image_bytesio.getvalue())
+                            image_type = imghdr.what(None, image_bytesio.getvalue())
+                            # self.log.info(image_type)
+                            image_data = base64.b64encode(image_bytesio.getvalue()).decode('ascii')
+                            # self.log.info(image_data)
+                            content = {
+                                'data': {
+                                    'image/' + image_type: image_data
+                                },
+                                'metadata': {}
+                            }
+                            self.send_response(self.iopub_socket, 'display_data', content)
+                except Exception as e:
+                    self.log.error(e)
+                    if self.display:
+                        self.display.cancel()
+                    raise e
+                self.display = Timer(interval, show, args=(self, var_name))
+                self.display.start()
+            if self.display:
+                self.display.cancel()
+            self.display = Timer(interval, show, args=(self, var_name))
+            self.display.start()
+
     def do_execute(self, code, silent, store_history=True, user_expressions=None, allow_stdin=False):
         if not code.strip():
             return {'status': 'ok', 'execution_count': self.execution_count,
                     'payload': [], 'user_expressions': {}}
-        
         self.log.debug(code)
+
+        if self.display:
+            self.display.cancel()
 
         result = self.pattern.findall(code)
 
@@ -156,6 +198,12 @@ class RPycKernel(IPythonKernel):
             # error_content['status'] = 'error'
             # return error_content
 
+        # Send standard output
+        # stream_content = {'name': 'stdout', 'text': 'test'}
+        # self.send_response(self.iopub_socket, 'stream', stream_content)
+
+        # self.send_response(self.iopub_socket, 'display_data', RPycKernel.display_data_for_image())
+        
         if interrupted:
             return {'status': 'abort', 'execution_count': self.execution_count}
 
