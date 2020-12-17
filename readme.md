@@ -26,7 +26,7 @@
 
 3. 支持获取（HOOK）远端变量，如 display image 图像绘制到返回页面当中。
 
-4. 更多信息请查看 [example](./example/view_images.ipynb) 的 ipynb 文档（效果所见即所得！）。
+4. 更多信息请查看 [example](./example) 的 ipynb 文档（效果所见即所得！）。
 
 ## 安装方法
 
