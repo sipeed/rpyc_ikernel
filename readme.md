@@ -119,9 +119,9 @@ uname_result(system='Linux', node='linux-lab', release='5.4.0-56-generic', versi
 当发现一段简单的 Python 代码执行后没有反应，可以按以下步骤排查错误。
 
 - 若在代码运行时，按中断按钮未能停止，请刷新代码网页，再尝试执行代码。
-- 重启 jupyter note 服务，重新连接远端设备执行代码。
+- 重启 jupyter notebook 服务，重新连接远端设备执行代码。
 
-如果仍然不行，则可能是网络问题，继续排查。
+如果仍然不行，则可能是网络问题，继续往下排查。
 
 ### 网络问题
 
@@ -133,7 +133,7 @@ uname_result(system='Linux', node='linux-lab', release='5.4.0-56-generic', versi
 
 ### 其他问题
 
-重启就好了。
+拔插网线或重启机器也许就好了。
 
 ## 设计核心
 
