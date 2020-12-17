@@ -104,7 +104,11 @@ uname_result(system='Linux', node='linux-lab', release='5.4.0-56-generic', versi
 
 更多示例可以参考 [example](example) 中的文档。
 
-> 注释中的 `# exec( python code )` 可以执行本地 Python 代码。一是不想在 Python 代码出现 %connect_remote 172.20.152.133 愚蠢代码(可以在 micropython / ssh 内核中看到)，二是不想配置一堆不同参数的内核。
+> 注释中的 `# exec( python code )` 可以执行本地 Python 代码。
+
+> 一是不想在 Python 代码出现 %connect_remote 172.20.152.133 愚蠢代码(可以在 micropython / ssh 内核中看到)
+
+> 二是不想配置一堆不同参数的内核。
 
 ## 常见问题
 
