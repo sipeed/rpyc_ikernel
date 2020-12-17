@@ -64,7 +64,7 @@ server.start()
 
 输入 `jupyter notebook` 会自动打开系统默认浏览器，请选中 rpyc 的内核，新建（new）一个文件。
 
-![](doc/kernels.png)
+![](./doc/kernels.png)
 
 如果没有看到，则可以输入 `python3 -m rpyc_ikernel.install` 完成内核的安装，此时就可以看到了。
 
