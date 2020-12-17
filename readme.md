@@ -26,18 +26,17 @@
 
 3. 支持获取（HOOK）远端变量，如 display image 图像绘制到返回页面当中。
 
-4. 更多信息请查看 [example](example) 的 ipynb 文档（效果所见即所得！）。
+4. 更多信息请查看 [examples](./examples) 的 ipynb 文档（打开 [view_images.ipynb](./examples/view_images.ipynb) 所见即所得！）。
 
 ## 安装方法
 
 如下示范在 Python3 安装，先安装 iPython 环境，再安装 iPykernel 内核即可。
 
 ```shell
-pip3 install rpyc_ikernel
-python3 -m rpyc_ikernel.install
+pip3 install rpyc_ikernel && python3 -m rpyc_ikernel.install
 ```
 
-有如下找不到模块常见错误，常见于 py2 和 py3 不分。
+有如下找不到模块常见错误，常见于 py2 和 py3 环境不分。
 
 - `/usr/bin/python3: Error while finding module specification for 'rpyc-ikernel.install' (ModuleNotFoundError: No module named 'rpyc-ikernel')`
 - `/usr/bin/python: No module named rpyc-ikernel`
@@ -46,7 +45,7 @@ python3 -m rpyc_ikernel.install
 
 首先，确定你机器的 IP 地址（ifconfig），请确保可以 ping 通，确保没有防火墙挡着。
 
-接着，在硬件中启动 rpyc 服务，请在安装 ` pip install rpyc ` 后，创建服务代码。
+接着，在硬件中启动 rpyc 服务，请在硬件中安装 ` pip install rpyc ` 后，创建服务代码运行。
 
 - `vi rpycs.py`
 
@@ -86,9 +85,9 @@ Available kernels:
 #
 # 将下述代码的 IP 地址修改后运行一次即可。
 #
-#   【注意看下面这段配置远端设备的代码！！！！！！！！】
+# 【注意看下面这段配置远端设备的代码，把 "localhost" 改成你的 IP 地址！！！！！！！！】
 #
-#      exec(self.connect_remote("172.20.152.133"))
+# exec(self.connect_remote("localhost"))
 #
 #
 #
@@ -105,7 +104,11 @@ uname_result(system='Linux', node='linux-lab', release='5.4.0-56-generic', versi
 
 更多示例可以参考 [example](example) 中的文档。
 
-> 注释中的 `# exec(print('hello world!'))` 可以执行本地 Python 代码。主要原因是在 Python 代码出现 %connect_remote 172.20.152.133 太丑了。我们可以在 micropython / ssh 内核的看到这样的调用方法，另一个原因是我不想配置一堆不同参数的内核。
+> 注释中的 `# exec( python code )` 可以执行本地 Python 代码。
+
+> 一是不想在 Python 代码出现 %connect_remote 172.20.152.133 愚蠢代码(可以在 micropython / ssh 内核中看到)
+
+> 二是不想配置一堆不同参数的内核。
 
 ## 常见问题
 
@@ -116,9 +119,9 @@ uname_result(system='Linux', node='linux-lab', release='5.4.0-56-generic', versi
 当发现一段简单的 Python 代码执行后没有反应，可以按以下步骤排查错误。
 
 - 若在代码运行时，按中断按钮未能停止，请刷新代码网页，再尝试执行代码。
-- 重启 jupyter note 服务，重新连接远端设备执行代码。
+- 重启 jupyter notebook 服务，重新连接远端设备执行代码。
 
-如果仍然不行，则可能是网络问题，继续排查。
+如果仍然不行，则可能是网络问题，继续往下排查。
 
 ### 网络问题
 
@@ -130,7 +133,7 @@ uname_result(system='Linux', node='linux-lab', release='5.4.0-56-generic', versi
 
 ### 其他问题
 
-重启就好了。
+拔插网线或重启机器也许就好了。
 
 ## 设计核心
 
