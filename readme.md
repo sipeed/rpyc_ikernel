@@ -33,8 +33,7 @@
 如下示范在 Python3 安装，先安装 iPython 环境，再安装 iPykernel 内核即可。
 
 ```shell
-pip3 install rpyc_ikernel
-python3 -m rpyc_ikernel.install
+pip3 install rpyc_ikernel && python3 -m rpyc_ikernel.install
 ```
 
 有如下找不到模块常见错误，常见于 py2 和 py3 不分。
