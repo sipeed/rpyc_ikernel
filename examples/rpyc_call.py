@@ -2,7 +2,6 @@
 import time
 import sys
 import rpyc
-import timerthread
 
 # _async_raise(ident, SystemExit)
 def _async_raise(tid):
@@ -65,15 +64,6 @@ class Machine():
                     self.remote = None
         self.do_reconnect()
         return False
-
-    # @timerthread.task('recur', 0.1)
-    # def _get_images(self, var_name):
-    #     try:
-    #         print(self, var_name)
-    #         if var_name in self.remote.namespace:
-    #             print(self.remote.namespace[var_name])
-    #     except Exception as e:
-    #         print('_get_images Exception', repr(e))
 
     # def display(self, var_name):
     #     self.timer = self._get_images.sched(self=self, var_name=var_name)

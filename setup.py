@@ -11,7 +11,7 @@ except ImportError:
 
 setup(
     name="rpyc_ikernel",
-    version="0.1.3",
+    version="0.1.5",
     description="Running IPython kernels through batch queues",
     author="Juwan",
     author_email="junhuanchen@qq.com",
@@ -19,7 +19,7 @@ setup(
     url="https://github.com/junhuanchen/rpyc_ikernel",
     packages=["rpyc_ikernel"],
     scripts=scripts,
-    entry_points={"console_scripts": ["rpyc_ikernel = rpyc_ikernel.__main__:main"]},
+    # entry_points={"console_scripts": ["rpyc_ikernel = rpyc_ikernel.__main__:main"]},
     install_requires=["notebook", "pexpect", "rpyc"],
     tests_requires=["pytest", "scripttest"],
     classifiers=[
