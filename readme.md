@@ -22,7 +22,7 @@
 
 2. 以远端（remote）代码为执行对象，服务轻量化，内存占用小。
 
-> 在 armv7 Python3 上需要 11M，而 iPykernel 需要 39M ，对比 iPykernel 的服务更加轻量化，不需要 iopub / shell / stdio / heart 等通道。
+> 经典 rpyc 服务在 armv7 Python3 上只需要 11M，而 iPykernel 需要 39M ，对比 iPykernel 的服务更加轻量化，不需要 iopub / shell / stdio / heart 等通道。
 
 3. 支持获取（HOOK）远端变量，如 display image 图像绘制到返回页面当中。
 
