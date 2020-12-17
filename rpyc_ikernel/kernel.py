@@ -164,12 +164,13 @@ class RPycKernel(IPythonKernel):
                                 'metadata': {}
                             }
                             self.send_response(self.iopub_socket, 'display_data', content)
-                except (KeyboardInterrupt, SystemExit) as e:
-                    raise e
+                # except (KeyboardInterrupt, SystemExit) as e:
+                #     raise e
                 except Exception as e:
                     self.log.debug(e)
                     self._stop_display()
-                    raise e
+                    # raise e
+                    return
                 self.timer = Timer(interval, show, args=(self, var_name))
                 self.timer.start()
             self._stop_display()
