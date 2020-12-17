@@ -36,7 +36,7 @@
 pip3 install rpyc_ikernel && python3 -m rpyc_ikernel.install
 ```
 
-有如下找不到模块常见错误，常见于 py2 和 py3 不分。
+有如下找不到模块常见错误，常见于 py2 和 py3 环境不分。
 
 - `/usr/bin/python3: Error while finding module specification for 'rpyc-ikernel.install' (ModuleNotFoundError: No module named 'rpyc-ikernel')`
 - `/usr/bin/python: No module named rpyc-ikernel`
@@ -45,7 +45,7 @@ pip3 install rpyc_ikernel && python3 -m rpyc_ikernel.install
 
 首先，确定你机器的 IP 地址（ifconfig），请确保可以 ping 通，确保没有防火墙挡着。
 
-接着，在硬件中启动 rpyc 服务，请在安装 ` pip install rpyc ` 后，创建服务代码。
+接着，在硬件中启动 rpyc 服务，请在硬件中安装 ` pip install rpyc ` 后，创建服务代码运行。
 
 - `vi rpycs.py`
 
