@@ -85,9 +85,9 @@ Available kernels:
 #
 # 将下述代码的 IP 地址修改后运行一次即可。
 #
-#   【注意看下面这段配置远端设备的代码！！！！！！！！】
+# 【注意看下面这段配置远端设备的代码，把 "localhost" 改成你的 IP 地址！！！！！！！！】
 #
-#      exec(self.connect_remote("172.20.152.133"))
+# exec(self.connect_remote("localhost"))
 #
 #
 #
@@ -104,7 +104,7 @@ uname_result(system='Linux', node='linux-lab', release='5.4.0-56-generic', versi
 
 更多示例可以参考 [example](example) 中的文档。
 
-> 注释中的 `# exec(print('hello world!'))` 可以执行本地 Python 代码。主要原因是在 Python 代码出现 %connect_remote 172.20.152.133 太丑了。我们可以在 micropython / ssh 内核的看到这样的调用方法，另一个原因是我不想配置一堆不同参数的内核。
+> 注释中的 `# exec(print('hello world!'))` 可以执行本地 Python 代码。主要原因是不想在 Python 代码出现 %connect_remote 172.20.152.133 太丑了。我们可以在 micropython / ssh 内核的看到这样的调用方法，另一个原因是我不想配置一堆不同参数的内核。
 
 ## 常见问题
 
