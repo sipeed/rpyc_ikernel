@@ -143,39 +143,38 @@ class RPycKernel(IPythonKernel):
 
     def display(self, var_name, interval=0.05): # 0.05 20 fps
         # self.log.info(var_name)
-        if self.remote:
-            def show(self, var_name):
-                try:
-                    if var_name in self.remote.namespace:
-                        if self.clear_output:  # used when updating lines printed
-                            self.send_response(self.iopub_socket, 'clear_output', { "wait":True })
-                        # self.log.info('exist: ' + var_name)
-                        image_bytesio = self.remote.namespace[var_name]
-                        if image_bytesio:
-                            # self.log.info(image_bytesio.getvalue())
-                            image_type = imghdr.what(None, image_bytesio.getvalue())
-                            # self.log.info(image_type)
-                            image_data = base64.b64encode(image_bytesio.getvalue()).decode('ascii')
-                            # self.log.info(image_data)
-                            content = {
-                                'data': {
-                                    'image/' + image_type: image_data
-                                },
-                                'metadata': {}
-                            }
-                            self.send_response(self.iopub_socket, 'display_data', content)
-                # except (KeyboardInterrupt, SystemExit) as e:
-                #     raise e
-                except Exception as e:
-                    self.log.debug(e)
-                    self._stop_display()
-                    # raise e
-                    return
-                self.timer = Timer(interval, show, args=(self, var_name))
-                self.timer.start()
-            self._stop_display()
+        def show(self, var_name):
+            try:
+                if self.remote and var_name in self.remote.namespace:
+                    if self.clear_output:  # used when updating lines printed
+                        self.send_response(self.iopub_socket, 'clear_output', { "wait":True })
+                    # self.log.info('exist: ' + var_name)
+                    image_bytesio = self.remote.namespace[var_name]
+                    if image_bytesio:
+                        # self.log.info(image_bytesio.getvalue())
+                        image_type = imghdr.what(None, image_bytesio.getvalue())
+                        # self.log.info(image_type)
+                        image_data = base64.b64encode(image_bytesio.getvalue()).decode('ascii')
+                        # self.log.info(image_data)
+                        content = {
+                            'data': {
+                                'image/' + image_type: image_data
+                            },
+                            'metadata': {}
+                        }
+                        self.send_response(self.iopub_socket, 'display_data', content)
+            # except (KeyboardInterrupt, SystemExit) as e:
+            #     raise e
+            except Exception as e:
+                self.log.info(e)
+                self._stop_display()
+                # raise e
+                return
             self.timer = Timer(interval, show, args=(self, var_name))
             self.timer.start()
+        self._stop_display()
+        self.timer = Timer(interval, show, args=(self, var_name))
+        self.timer.start()
 
     def kill_task(self):
         master = rpyc.classic.connect(self.address)
