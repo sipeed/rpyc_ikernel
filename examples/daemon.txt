@@ -1,1 +1,0 @@
-python3  -X faulthandler /labs/rpyc/bin/rpycs.py

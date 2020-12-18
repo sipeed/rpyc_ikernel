@@ -103,7 +103,14 @@ class RPycKernel(IPythonKernel):
         self.address = None
         self.timer = None
         self.clear_output = True
-        self.pattern = re.compile(r"\s*#\s*exec[(](.*)[)]")
+        # for do_handle
+        self.pattern = re.compile("\s*[!](.*?)[(](.*)[)]")
+        self.commands = {
+            'exec':'%s',
+            'display':'self.display(%s)',
+            'connect':'self.connect_remote(%s)',
+        }
+
         self.do_reconnect()
     
     def do_reconnect(self):
@@ -123,7 +130,7 @@ class RPycKernel(IPythonKernel):
             try:
                 if self.remote.closed:
                     raise Exception('remote %s closed' % self.address)
-                self.log.debug('checking...', self.remote.closed)
+                self.log.debug('checking... (%s)' % self.remote.closed)
                 self.remote.ping() # fail raise PingError
                 return True
             except Exception as e: # PingError
@@ -186,9 +193,25 @@ class RPycKernel(IPythonKernel):
             try:
                 master.teleport(_async_raise)(id)
             except Exception as e:
-                self.log.debug('teleport Exception', repr(e))
+                self.log.debug('teleport Exception (%s)' % repr(e))
         # print(master.modules.threading.enumerate())
         master.close()
+
+    def do_handle(self, code):
+        # self.log.info(code)
+        # code = re.sub(r'([#](.*)[\n])', '', code) # clear '# etc...' but bug have "#" 
+        # self.log.info(code)
+
+        cmds = self.pattern.findall(code)
+        for cmd in cmds:
+            _format = self.commands.get(cmd[0], None)
+            if _format:
+                # print(_format % cmd[1])
+                exec(_format % cmd[1])
+        code = self.pattern.sub('', code)
+        
+        # self.log.info(code)
+        return code
 
     def do_execute(self, code, silent, store_history=True, user_expressions=None, allow_stdin=False):
         if not code.strip():
@@ -196,16 +219,15 @@ class RPycKernel(IPythonKernel):
                     'payload': [], 'user_expressions': {}}
         self.log.debug(code)
 
-        result = self.pattern.findall(code)
-
-        if len(result):
-            try:
-                # exec(self.address = "localhost" and self.do_reconnect(True))
-                for c in result:
-                    exec(c) # self.log.info(c)
-            except Exception as e:
-                self.log.error(e)
-                # return {'status': 'abort', 'execution_count': self.execution_count}
+        # Handle the host call code
+        code = self.do_handle(code)
+        
+        # return {
+        #         'status': 'ok', 
+        #         'execution_count': self.execution_count, 
+        #         'payload': [], 
+        #         'user_expressions': {}
+        #     }
 
         interrupted = False
 
