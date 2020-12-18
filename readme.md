@@ -4,18 +4,6 @@
 [![MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 [![PyPI version](https://badge.fury.io/py/rpyc-ikernel.svg)](https://badge.fury.io/py/rpyc-ikernel)
 
-该内核设计取自以下 Python 仓库。
-
-- [ipykernel](https://github.com/ipython/ipykernel)
-- [rpyc](https://github.com/tomerfiliba-org/rpyc)
-
-参考内核如下。
-
-- [bash_kernel](https://github.com/takluyver/bash_kernel)
-- [ubit_kernel](https://github.com/takluyver/ubit_kernel)
-- [remote_ikernel](https://github.com/tdaff/remote_ikernel)
-- [jupyter_micropython_kernel](https://github.com/goatchurchprime/jupyter_micropython_kernel)
-
 ## 内核介绍
 
 1. 继承 IPythonKernel ，和 iPython 一样支持 Python3 语法和 Tab 补全代码。
@@ -32,7 +20,7 @@
 
 ## 安装方法
 
-我们分两个步骤进行描述：
+按两个方面进行描述：
 
 - 给【远端设备】配置 rpyc 服务。
 - 给本机 Python 安装 jupyter 环境。
@@ -139,7 +127,21 @@ uname_result(system='Linux', node='linux-lab', release='5.4.0-56-generic', versi
 
 拔插网线或重启机器也许就好了。
 
-## uplaod pypi
+## 更多
+
+该内核设计取自以下 Python 仓库。
+
+- [ipykernel](https://github.com/ipython/ipykernel)
+- [rpyc](https://github.com/tomerfiliba-org/rpyc)
+
+参考内核如下。
+
+- [bash_kernel](https://github.com/takluyver/bash_kernel)
+- [ubit_kernel](https://github.com/takluyver/ubit_kernel)
+- [remote_ikernel](https://github.com/tdaff/remote_ikernel)
+- [jupyter_micropython_kernel](https://github.com/goatchurchprime/jupyter_micropython_kernel)
+
+pypi 指令
 
 ```shell
 python setup.py sdist build
