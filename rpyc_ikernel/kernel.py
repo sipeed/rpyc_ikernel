@@ -170,6 +170,9 @@ class RPycKernel(IPythonKernel):
                             'metadata': {}
                         }
                         self.send_response(self.iopub_socket, 'display_data', content)
+                        self._stop_display()
+                        self.timer = Timer(interval, show, args=(self, var_name))
+                        self.timer.start()
             # except (KeyboardInterrupt, SystemExit) as e:
             #     raise e
             except Exception as e:
@@ -177,8 +180,6 @@ class RPycKernel(IPythonKernel):
                 self._stop_display()
                 # raise e
                 return
-            self.timer = Timer(interval, show, args=(self, var_name))
-            self.timer.start()
         self._stop_display()
         self.timer = Timer(interval, show, args=(self, var_name))
         self.timer.start()
@@ -219,6 +220,8 @@ class RPycKernel(IPythonKernel):
                     'payload': [], 'user_expressions': {}}
         self.log.debug(code)
 
+        self._stop_display()
+        
         # Handle the host call code
         code = self.do_handle(code)
         
