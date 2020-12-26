@@ -148,8 +148,9 @@ class RPycKernel(IPythonKernel):
         if self.timer:
             self.timer.cancel()
 
-    def display(self, var_name, interval=0.05): # 0.05 20 fps
+    def display(self, var_name, interval=0.05, clear_output=True): # 0.05 20 fps
         # self.log.info(var_name)
+        self.clear_output = clear_output
         def show(self, var_name):
             try:
                 if self.remote and var_name in self.remote.namespace:
