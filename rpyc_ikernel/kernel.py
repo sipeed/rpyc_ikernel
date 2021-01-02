@@ -8,7 +8,7 @@ job schedulers.
 
 """
 
-import imghdr, base64, os
+import imghdr, base64, os, io
 import argparse
 import logging
 import time
@@ -101,13 +101,11 @@ class RPycKernel(IPythonKernel):
         self.log = _setup_logging()
         self.remote = None
         self.address = None
-        self.timer = None
-        self.clear_output = True
+        self._thread_display = None
         # for do_handle
-        self.pattern = re.compile("\s*[!](.*?)[(](.*)[)]")
+        self.pattern = re.compile("\s*[$](.*?)[(](.*)[)]")
         self.commands = {
             'exec':'%s',
-            'display':'self.display(%s)',
             'connect':'self.connect_remote(%s)',
         }
 
@@ -145,45 +143,46 @@ class RPycKernel(IPythonKernel):
         self.do_reconnect()
 
     def _stop_display(self):
-        if self.timer:
-            self.timer.cancel()
+        if self._thread_display:
+            self._thread_display = None
 
-    def display(self, var_name, interval=0.05, clear_output=True): # 0.05 20 fps
-        # self.log.info(var_name)
-        self.clear_output = clear_output
-        def show(self, var_name):
+    def _maix_display(self, module = 'maix.display'):
+        import _thread
+        def show_image(self, module):
             try:
-                if self.remote and var_name in self.remote.namespace:
-                    if self.clear_output:  # used when updating lines printed
-                        self.send_response(self.iopub_socket, 'clear_output', { "wait":True })
-                    # self.log.info('exist: ' + var_name)
-                    image_bytesio = self.remote.namespace[var_name]
-                    if image_bytesio:
-                        # self.log.info(image_bytesio.getvalue())
-                        image_type = imghdr.what(None, image_bytesio.getvalue())
-                        # self.log.info(image_type)
-                        image_data = base64.b64encode(image_bytesio.getvalue()).decode('ascii')
-                        # self.log.info(image_data)
-                        content = {
-                            'data': {
-                                'image/' + image_type: image_data
-                            },
-                            'metadata': {}
-                        }
-                        self.send_response(self.iopub_socket, 'display_data', content)
-                        self._stop_display()
-                        self.timer = Timer(interval, show, args=(self, var_name))
-                        self.timer.start()
-            # except (KeyboardInterrupt, SystemExit) as e:
-            #     raise e
+                if self.remote:
+                    remote_display = self.remote.modules[module]
+                    if remote_display.__show__: # allow show
+                        
+                        if remote_display.clear_output:  # used when updating lines printed
+                            self.send_response(self.iopub_socket, 'clear_output', { "wait":True })
+                        
+                        # maix.display.__display__# save local var from remote var
+                        image_buffer = remote_display.__image__.getvalue()
+                        # self.log.info(image_buffer)
+                        remote_display.__show__ = False
+
+                        if image_buffer:
+                            # self.log.debug(image.getvalue())
+                            image_type = imghdr.what(None, image_buffer)
+                            # self.log.debug(image_type)
+                            image_data = base64.b64encode(image_buffer).decode('ascii')
+                            # self.log.debug(image_data)
+                            self.send_response(self.iopub_socket, 'display_data', {
+                                'data': {
+                                    'image/' + image_type: image_data
+                                },
+                                'metadata': {}
+                            })
+                if self._thread_display:
+                    self._thread_display = _thread.start_new_thread(show_image, (self, module))
             except Exception as e:
-                self.log.info(e)
+                self.log.debug(e)
                 self._stop_display()
                 # raise e
                 return
-        self._stop_display()
-        self.timer = Timer(interval, show, args=(self, var_name))
-        self.timer.start()
+        if self._thread_display == None:
+            self._thread_display = _thread.start_new_thread(show_image, (self, module))
 
     def kill_task(self):
         master = rpyc.classic.connect(self.address)
@@ -200,9 +199,9 @@ class RPycKernel(IPythonKernel):
         master.close()
 
     def do_handle(self, code):
-        # self.log.info(code)
+        # self.log.debug(code)
         # code = re.sub(r'([#](.*)[\n])', '', code) # clear '# etc...' but bug have "#" 
-        # self.log.info(code)
+        # self.log.debug(code)
 
         cmds = self.pattern.findall(code)
         for cmd in cmds:
@@ -212,7 +211,7 @@ class RPycKernel(IPythonKernel):
                 exec(_format % cmd[1])
         code = self.pattern.sub('', code)
         
-        # self.log.info(code)
+        # self.log.debug(code)
         return code
 
     def do_execute(self, code, silent, store_history=True, user_expressions=None, allow_stdin=False):
@@ -221,8 +220,6 @@ class RPycKernel(IPythonKernel):
                     'payload': [], 'user_expressions': {}}
         self.log.debug(code)
 
-        self._stop_display()
-        
         # Handle the host call code
         code = self.do_handle(code)
         
@@ -237,6 +234,7 @@ class RPycKernel(IPythonKernel):
 
         if self.check_connect():
             try:
+                self._maix_display()
                 try:
                     # with rpyc.classic.redirected_stdio(self.remote):
                     #     self.remote.execute(code)
@@ -244,7 +242,6 @@ class RPycKernel(IPythonKernel):
                 except KeyboardInterrupt as e:
                     # self.remote.execute("raise KeyboardInterrupt") # maybe raise main_thread Exception
                     interrupted = True
-                    self._stop_display()
                     self.kill_task()
                     self.log.error('\r\nTraceback (most recent call last):\r\n  File "<string>", line 1, in <module>\r\nKeyboardInterrupt\r\n')
                     # raise e
@@ -254,6 +251,8 @@ class RPycKernel(IPythonKernel):
                 self.log.debug(e)
             except Exception as e:
                 self.log.error(e)
+            finally:
+                self._stop_display()
 
         if interrupted:
             return {'status': 'abort', 'execution_count': self.execution_count}
