@@ -15,7 +15,7 @@
 | $connect("localhost")  | 连接到远端（remote）的 IP 地址（如："192.168.44.171:18812"） | [connect_hardware.ipynb](./examples/connect_hardware.ipynb) |
 | $exec("code")  | 该（code）代码会在本地环境（local）下执行。 | [usage_exec.ipynb](./examples/usage_exec.ipynb) |
 
-> 在 rpyc_ikernel 的 show image 依赖于 [maix.display](https://github.com/sipeed/pymaix) 的实现[rpyc_ikernel/kernel.py](https://github.com/sipeed/rpyc_ikernel/blob/master/rpyc_ikernel/kernel.py#L149)。
+> 在 rpyc_ikernel 的 show image 依赖于 [maix.display](https://github.com/sipeed/pymaix/blob/main/maix/display.py) 的实现[rpyc_ikernel/kernel.py](https://github.com/sipeed/rpyc_ikernel/blob/master/rpyc_ikernel/kernel.py#L149)。
 
 ## 安装方法
 
