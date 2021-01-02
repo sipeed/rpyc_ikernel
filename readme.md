@@ -6,28 +6,25 @@
 
 ## 内核介绍
 
-1. 继承 IPythonKernel ，和 iPython 一样支持 Python3 语法和 Tab 补全代码。
+1. 继承 IPythonKernel（iPython），支持 Python3 下的补全代码（tab）。
 
-2. 以远端（remote）代码为执行对象，服务轻量化，内存占用小。
-
-3. 添加如下内置指令
+2. 以远端（remote）代码为执行对象，服务轻量化，内存占用小，内置如下指令。
 
 |  指令格式   | 指令功能  | 使用方法 |
 |  ----  | ----  |  ----  |
-| !connect("localhost")  | 设置 IP 地址（如："127.0.0.1:18812"）连接到远端 Python 环境 | [connect.ipynb](./examples/connect.ipynb) |
-| !display("image")  | 将远端 Python 环境中变量名为（image）的图像（png/jpg/bmp）绘制到 notebook 返回值中。 | [view_images.ipynb](./examples/view_images.ipynb) |
-| !exec("code")  | 在本机环境下执行 Python 代码。 | [exec.ipynb](./examples/exec.ipynb) |
+| $connect("localhost")  | 连接到远端（remote）的 IP 地址（如："192.168.44.171:18812"） | [connect_hardware.ipynb](./examples/connect_hardware.ipynb) |
+| $exec("code")  | 该（code）代码会在本地环境（local）下执行。 | [usage_exec.ipynb](./examples/usage_exec.ipynb) |
 
 ## 安装方法
 
-按两个方面进行描述：
+按如下顺序说明：
 
-- 给【远端设备】配置 rpyc 服务。
-- 给本机 Python 安装 jupyter 环境。
+- 给【远端 Python 】配置 rpyc 服务。
+- 给【本地 Python 】安装 jupyter 环境。
 
-## 给【远端设备】配置 rpyc 服务
+## 给【远端 Python 】配置 rpyc 服务。
 
-在你远端的设备上使用 **ifconfig** 或 **ipconfig** 获取你的 IP 地址，请确保该地址可以 **ping** 通。
+在你远端设备上使用 **ifconfig** 或 **ipconfig** 获取你的 IP 地址，请确保该地址可以 **ping** 通。
 
 确保远端的设备配置为 **Python3** 环境，输入 `pip3 install rpyc` 安装 **rpyc** 服务，复制下述指令运行即可启动服务。
 
@@ -48,7 +45,7 @@ python3 -c "from rpyc.utils.server import ThreadedServer;from rpyc.core.service 
 > 输入命令 `python3 rpycs.py &` 即可在后台执行。
 >
 
-## 给本机 Python 安装 jupyter 环境
+## 给【本地 Python 】安装 jupyter 环境。
 
 以 Python3 为例，请确保已经安装了 python3 和 pip3 基本环境/命令，在命令行下方调用该代码即可。
 
@@ -90,7 +87,7 @@ Available kernels:
 在运行代码前，请配置 IP 地址进行连接，否则默认连接到 "localhost" 的地址请求服务。
 
 ```python
-!connect("192.168.43.44")
+$connect("192.168.43.44")
 import platform
 print(platform.uname())
 ```
@@ -141,7 +138,7 @@ uname_result(system='Linux', node='linux-lab', release='5.4.0-56-generic', versi
 - [remote_ikernel](https://github.com/tdaff/remote_ikernel)
 - [jupyter_micropython_kernel](https://github.com/goatchurchprime/jupyter_micropython_kernel)
 
-pypi 指令
+## upload pypi
 
 ```shell
 python setup.py sdist build
