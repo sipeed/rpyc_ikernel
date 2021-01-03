@@ -101,6 +101,7 @@ class RPycKernel(IPythonKernel):
         self.remote = None
         self.address = None
         self._thread_display = None
+        self.images = None
         # for do_handle
         self.pattern = re.compile("\s*[$](.*?)[(](.*)[)]")
         self.commands = {
@@ -145,69 +146,58 @@ class RPycKernel(IPythonKernel):
     def _stop_display(self):
         if self._thread_display:
             self._thread_display = None
+            self.images = None
 
     def _maix_display(self, module = 'maix.display'):
         import _thread
         from PIL import Image
-        def show_image(self, module):
+        remote_display = self.remote.modules[module]
+        self.clear_output = remote_display.clear_output
+        # self.size = (remote_display.__width__, remote_display.__height__)
+        def show_image(self, remote_display):
             try:
-                if self.remote:
-                    remote_display = self.remote.modules[module]
-                    if remote_display.__show__ and remote_display.__images__: # allow show
-                        
-                        clear_output = remote_display.clear_output
+                if self.images is None:
+                    self.images = [] # bind display push
+                    remote_display.__images__ = self.images
 
-                        # if clear_output:  # used when updating lines printed
-                        #     self.send_response(self.iopub_socket, 'clear_output', { "wait":True })
+                if self.remote and remote_display.__show__:
 
-                        images = remote_display.__images__
-                        remote_display.__images__.clear()
-                        interval = remote_display.__interval__
-                        size = (remote_display.__width__, remote_display.__height__)
-                        remote_display.__show__ = False
-                    
-                        def __show__(self, images, size, interval):
-                            try:
-                                for img in images:
-                                    time.sleep(interval) # keep it
+                    images = self.images.copy()
+                    self.images.clear()
+                    remote_display.__show__ = False
+    
+                    for img in images:
 
-                                    if clear_output:  # used when updating lines printed
-                                        self.send_response(self.iopub_socket, 'clear_output', { "wait":True })
+                        if self.clear_output:  # used when updating lines printed
+                            self.send_response(self.iopub_socket, 'clear_output', { "wait":True })
 
-                                    # image = Image.frombytes("RGB", size, img)
-                                    # image_io = io.BytesIO()
-                                    # image.save(image_io, format='png') # quality=95
-                                    # image_buffer = image_io.getvalue()
+                        # image = Image.frombytes("RGB", self.size, img)
+                        # image_io = io.BytesIO()
+                        # image.save(image_io, format='png') # quality=95
+                        # image_buffer = image_io.getvalue()
 
-                                    image_buffer = img.getvalue()
-                                    # self.log.debug(image.getvalue())
-                                    image_type = imghdr.what(None, image_buffer)
-                                    # self.log.debug(image_type)
-                                    image_data = base64.b64encode(image_buffer).decode('ascii')
-                                    # self.log.debug(image_data)
-                                    self.send_response(self.iopub_socket, 'display_data', {
-                                        'data': {
-                                            'image/' + image_type: image_data
-                                        },
-                                        'metadata': {}
-                                    })
-                            except Exception as e:
-                                # self.log.info(e)
-                                self._stop_display()
-                                # raise e
-                                return
-
-                        _thread.start_new_thread(__show__, (self, images, size, interval))
+                        image_buffer = img.getvalue()
+                        # self.log.debug(image.getvalue())
+                        image_type = imghdr.what(None, image_buffer)
+                        # self.log.debug(image_type)
+                        image_data = base64.b64encode(image_buffer).decode('ascii')
+                        # self.log.debug(image_data)
+                        self.send_response(self.iopub_socket, 'display_data', {
+                            'data': {
+                                'image/' + image_type: image_data
+                            },
+                            'metadata': {}
+                        })
 
                 if self._thread_display:
-                    self._thread_display = _thread.start_new_thread(show_image, (self, module))
+                    self._thread_display = _thread.start_new_thread(show_image, (self, remote_display))
             except Exception as e:
                 # self.log.info(e)
                 self._stop_display()
                 # raise e
                 return
         if self._thread_display == None:
-            self._thread_display = _thread.start_new_thread(show_image, (self, module))
+            self._thread_display = _thread.start_new_thread(show_image, (self, remote_display))
 
     def kill_task(self):
         master = rpyc.classic.connect(self.address)
