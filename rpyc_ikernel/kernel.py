@@ -117,6 +117,7 @@ class RPycKernel(IPythonKernel):
             self.remote.modules.sys.stdin = sys.stdin
             self.remote.modules.sys.stdout = sys.stdout
             self.remote.modules.sys.stderr = sys.stderr
+            self.remote._config['sync_request_timeout'] = None
             return True
         except Exception as e: # ConnectionRefusedError: [Errno 111] Connection refused
             self.remote = None
@@ -148,18 +149,23 @@ class RPycKernel(IPythonKernel):
 
     def _maix_display(self, module = 'maix.display'):
         import _thread
+        from PIL import Image
         def show_image(self, module):
             try:
                 if self.remote:
                     remote_display = self.remote.modules[module]
-                    if remote_display.__show__: # allow show
+                    if remote_display.__show__ and remote_display.__image__: # allow show
                         
                         if remote_display.clear_output:  # used when updating lines printed
                             self.send_response(self.iopub_socket, 'clear_output', { "wait":True })
-                        
-                        # maix.display.__display__# save local var from remote var
-                        image_buffer = remote_display.__image__.getvalue()
-                        # self.log.info(image_buffer)
+                                            
+                        # image_buffer = remote_display.__image__.getvalue()
+
+                        x, y = (remote_display.__width__, remote_display.__height__)
+                        image = Image.frombytes("RGB", (x, y), remote_display.__image__)
+                        image_io = io.BytesIO()
+                        image.save(image_io, format='png')  # quality=95
+                        image_buffer = image_io.getvalue()
                         remote_display.__show__ = False
 
                         if image_buffer:
@@ -177,7 +183,7 @@ class RPycKernel(IPythonKernel):
                 if self._thread_display:
                     self._thread_display = _thread.start_new_thread(show_image, (self, module))
             except Exception as e:
-                self.log.debug(e)
+                self.log.info(e)
                 self._stop_display()
                 # raise e
                 return
