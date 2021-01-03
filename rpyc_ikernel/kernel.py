@@ -17,7 +17,6 @@ import rpyc
 import sys
 import signal
 import re
-from threading import Timer
 
 try:
     from pexpect import spawn as pexpect_spawn
@@ -154,36 +153,56 @@ class RPycKernel(IPythonKernel):
             try:
                 if self.remote:
                     remote_display = self.remote.modules[module]
-                    if remote_display.__show__ and remote_display.__image__: # allow show
+                    if remote_display.__show__ and remote_display.__images__: # allow show
                         
-                        if remote_display.clear_output:  # used when updating lines printed
-                            self.send_response(self.iopub_socket, 'clear_output', { "wait":True })
-                                            
-                        # image_buffer = remote_display.__image__.getvalue()
+                        clear_output = remote_display.clear_output
 
-                        x, y = (remote_display.__width__, remote_display.__height__)
-                        image = Image.frombytes("RGB", (x, y), remote_display.__image__)
-                        image_io = io.BytesIO()
-                        image.save(image_io, format='png')  # quality=95
-                        image_buffer = image_io.getvalue()
+                        # if clear_output:  # used when updating lines printed
+                        #     self.send_response(self.iopub_socket, 'clear_output', { "wait":True })
+
+                        images = remote_display.__images__
+                        remote_display.__images__.clear()
+                        interval = remote_display.__interval__
+                        size = (remote_display.__width__, remote_display.__height__)
                         remote_display.__show__ = False
+                    
+                        def __show__(self, images, size, interval):
+                            try:
+                                for img in images:
+                                    time.sleep(interval) # keep it
 
-                        if image_buffer:
-                            # self.log.debug(image.getvalue())
-                            image_type = imghdr.what(None, image_buffer)
-                            # self.log.debug(image_type)
-                            image_data = base64.b64encode(image_buffer).decode('ascii')
-                            # self.log.debug(image_data)
-                            self.send_response(self.iopub_socket, 'display_data', {
-                                'data': {
-                                    'image/' + image_type: image_data
-                                },
-                                'metadata': {}
-                            })
+                                    if clear_output:  # used when updating lines printed
+                                        self.send_response(self.iopub_socket, 'clear_output', { "wait":True })
+
+                                    # image = Image.frombytes("RGB", size, img)
+                                    # image_io = io.BytesIO()
+                                    # image.save(image_io, format='png') # quality=95
+                                    # image_buffer = image_io.getvalue()
+
+                                    image_buffer = img.getvalue()
+                                    # self.log.debug(image.getvalue())
+                                    image_type = imghdr.what(None, image_buffer)
+                                    # self.log.debug(image_type)
+                                    image_data = base64.b64encode(image_buffer).decode('ascii')
+                                    # self.log.debug(image_data)
+                                    self.send_response(self.iopub_socket, 'display_data', {
+                                        'data': {
+                                            'image/' + image_type: image_data
+                                        },
+                                        'metadata': {}
+                                    })
+                            except Exception as e:
+                                # self.log.info(e)
+                                self._stop_display()
+                                # raise e
+                                return
+
+                        _thread.start_new_thread(__show__, (self, images, size, interval))
+
                 if self._thread_display:
                     self._thread_display = _thread.start_new_thread(show_image, (self, module))
             except Exception as e:
-                self.log.info(e)
+                # self.log.info(e)
                 self._stop_display()
                 # raise e
                 return
