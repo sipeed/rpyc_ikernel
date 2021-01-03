@@ -11,7 +11,7 @@ except ImportError:
 
 setup(
     name="rpyc_ikernel",
-    version="0.1.9",
+    version="0.2.0",
     description="Running IPython kernels through batch queues",
     author="Juwan",
     author_email="junhuanchen@qq.com",
