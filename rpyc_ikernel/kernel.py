@@ -173,8 +173,9 @@ class RPycKernel(IPythonKernel):
                             self.send_response(self.iopub_socket, 'clear_output', { "wait":True })
 
                         image = Image.frombytes("RGB", self.size, img)
+                        image = image.resize((image.width * 2, image.height * 2), Image.ANTIALIAS)
                         image_io = io.BytesIO()
-                        image.save(image_io, format='png') # quality=95
+                        image.save(image_io, format='jpeg', quality=95, optimize=True) # quality=95
                         image_buffer = image_io.getvalue()
 
                         # image_buffer = img.getvalue()
