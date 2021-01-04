@@ -153,30 +153,31 @@ class RPycKernel(IPythonKernel):
         from PIL import Image
         remote_display = self.remote.modules[module]
         self.clear_output = remote_display.clear_output
-        # self.size = (remote_display.__width__, remote_display.__height__)
         def show_image(self, remote_display):
             try:
                 if self.images is None:
+                    self.size = (remote_display.__width__, remote_display.__height__)
                     self.images = [] # bind display push
                     remote_display.__images__ = self.images
-
-                if self.remote and remote_display.__show__:
+                    
+                if self.remote and remote_display.__show__ and self.images:
 
                     images = self.images.copy()
                     self.images.clear()
                     remote_display.__show__ = False
-    
+                    
+                    # self.log.info(images)
                     for img in images:
 
                         if self.clear_output:  # used when updating lines printed
                             self.send_response(self.iopub_socket, 'clear_output', { "wait":True })
 
-                        # image = Image.frombytes("RGB", self.size, img)
-                        # image_io = io.BytesIO()
-                        # image.save(image_io, format='png') # quality=95
-                        # image_buffer = image_io.getvalue()
+                        image = Image.frombytes("RGB", self.size, img)
+                        image_io = io.BytesIO()
+                        image.save(image_io, format='png') # quality=95
+                        image_buffer = image_io.getvalue()
 
-                        image_buffer = img.getvalue()
+                        # image_buffer = img.getvalue()
                         # self.log.debug(image.getvalue())
                         image_type = imghdr.what(None, image_buffer)
                         # self.log.debug(image_type)
