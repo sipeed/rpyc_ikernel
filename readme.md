@@ -16,6 +16,7 @@
 | $exec("code")  | 该（code）代码会在本地环境（local）下执行。 | [usage_exec.ipynb](./examples/usage_exec.ipynb) |
 
 > 在 rpyc_ikernel 的 show image 依赖于 [maix.display](https://github.com/sipeed/pymaix/blob/main/maix/display.py) 的实现[rpyc_ikernel/kernel.py](https://github.com/sipeed/rpyc_ikernel/blob/master/rpyc_ikernel/kernel.py#L149)。
+> 为了跨平台实现，之后会使用 rtp socket 推流图像来接收，至少提升至 12 fps 请等待更新。
 
 ## 安装方法
 
