@@ -8,7 +8,10 @@ job schedulers.
 
 """
 
-import imghdr, base64, os, io
+import imghdr
+import base64
+import os
+import io
 import argparse
 import logging
 import time
@@ -32,13 +35,16 @@ except ImportError:
 from ipykernel.ipkernel import IPythonKernel
 
 # Blend in with the notebook logging
+
+
 def _setup_logging(verbose=logging.INFO):
 
     log = logging.getLogger("rpyc_ikernel")
     log.setLevel(verbose)
     # Logging on stderr
     console = logging.StreamHandler()
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s') 
+    formatter = logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     console.setFormatter(formatter)
 
     log.handlers = []
@@ -68,18 +74,22 @@ def _setup_logging(verbose=logging.INFO):
     log.flush = _pass
 
     return log
-    
+
 # _async_raise(ident, SystemExit)
+
+
 def _async_raise(tid):
-    import inspect, ctypes
+    import inspect
+    import ctypes
     exctype = KeyboardInterrupt
     """raises the exception, performs cleanup if needed"""
     tid = ctypes.c_long(tid)
     if not inspect.isclass(exctype):
         exctype = type(exctype)
-    res = ctypes.pythonapi.PyThreadState_SetAsyncExc(tid, ctypes.py_object(exctype))
+    res = ctypes.pythonapi.PyThreadState_SetAsyncExc(
+        tid, ctypes.py_object(exctype))
     if res == 0:
-        return # maybe thread killed
+        return  # maybe thread killed
         # raise ValueError("invalid thread id")
     if res != 1:
         # """if it returns a number greater than one, you're in trouble,
@@ -87,30 +97,31 @@ def _async_raise(tid):
         ctypes.pythonapi.PyThreadState_SetAsyncExc(tid, None)
         raise SystemError("PyThreadState_SetAsyncExc failed")
 
+
 class RPycKernel(IPythonKernel):
     implementation = 'rpyc_kernel'
 
     language_info = {'name': 'Python',
-                     'codemirror_mode': 'python',
-                     'mimetype': 'text/python',
-                     'file_extension': '.py'}
+                    'codemirror_mode': 'python',
+                    'mimetype': 'text/python',
+                    'file_extension': '.py'}
 
     def __init__(self, **kwargs):
         IPythonKernel.__init__(self, **kwargs)
         self.log = _setup_logging()
         self.remote = None
-        self.address = None
-        self._thread_display = None
-        self.images = None
+        self.address = "localhost"
+        self._media_client = None
+        self.clear_output = True
         # for do_handle
         self.pattern = re.compile("\s*[$](.*?)[(](.*)[)]")
         self.commands = {
-            'exec':'%s',
-            'connect':'self.connect_remote(%s)',
+            'exec': '%s',
+            'connect': 'self.connect_remote(%s)',
         }
 
         self.do_reconnect()
-    
+
     def do_reconnect(self):
         try:
             self.remote = rpyc.classic.connect(self.address)
@@ -118,8 +129,10 @@ class RPycKernel(IPythonKernel):
             self.remote.modules.sys.stdout = sys.stdout
             self.remote.modules.sys.stderr = sys.stderr
             self.remote._config['sync_request_timeout'] = None
+            self.remote.modules["maix.display"].remote = self
             return True
-        except Exception as e: # ConnectionRefusedError: [Errno 111] Connection refused
+        # ConnectionRefusedError: [Errno 111] Connection refused
+        except Exception as e:
             self.remote = None
             self.log.info('%s on Remote IP: %s' % (repr(e), self.address))
         return False
@@ -130,9 +143,9 @@ class RPycKernel(IPythonKernel):
                 if self.remote.closed:
                     raise Exception('remote %s closed' % self.address)
                 self.log.debug('checking... (%s)' % self.remote.closed)
-                self.remote.ping() # fail raise PingError
+                self.remote.ping()  # fail raise PingError
                 return True
-            except Exception as e: # PingError
+            except Exception as e:  # PingError
                 # self.log.error(repr(e))
                 if self.remote != None:
                     self.remote.close()
@@ -144,68 +157,49 @@ class RPycKernel(IPythonKernel):
         self.do_reconnect()
 
     def _stop_display(self):
-        if self._thread_display:
-            self._thread_display = None
-            self.images = None
+        if self._media_client:
+            self._media_client.__del__()
+            self._media_client = None
 
-    def _maix_display(self, module = 'maix.display'):
-        import _thread
-        from PIL import Image
-        remote_display = self.remote.modules[module]
-        self.clear_output = remote_display.clear_output
-        def show_image(self, remote_display):
-            try:
-                if self.images is None:
-                    self.size = (remote_display.__width__, remote_display.__height__)
-                    self.images = [] # bind display push
-                    remote_display.__images__ = self.images
-                    
-                if self.remote and remote_display.__show__ and self.images:
-
-                    images = self.images.copy()
-                    self.images.clear()
-                    remote_display.__show__ = False
-                    
-                    # self.log.info(images)
-                    for img in images:
-
-                        if self.clear_output:  # used when updating lines printed
-                            self.send_response(self.iopub_socket, 'clear_output', { "wait":True })
-
-                        image = Image.frombytes("RGB", self.size, img)
-                        image = image.resize((image.width * 2, image.height * 2), Image.ANTIALIAS)
-                        image_io = io.BytesIO()
-                        image.save(image_io, format='jpeg', quality=95, optimize=True) # quality=95
-                        image_buffer = image_io.getvalue()
-
-                        # image_buffer = img.getvalue()
-                        # self.log.debug(image.getvalue())
-                        image_type = imghdr.what(None, image_buffer)
-                        # self.log.debug(image_type)
-                        image_data = base64.b64encode(image_buffer).decode('ascii')
-                        # self.log.debug(image_data)
-                        self.send_response(self.iopub_socket, 'display_data', {
-                            'data': {
-                                'image/' + image_type: image_data
-                            },
-                            'metadata': {}
-                        })
-
-                if self._thread_display:
-                    self._thread_display = _thread.start_new_thread(show_image, (self, remote_display))
-            except Exception as e:
-                # self.log.info(e)
-                self._stop_display()
-                # raise e
-                return
-        if self._thread_display == None:
-            self._thread_display = _thread.start_new_thread(show_image, (self, remote_display))
+    def _update_display(self, file_name='/dev/display', host_port=18811, rtp_port=18813, fps=15):
+        from .rtspc import Client
+        if self._media_client == None:
+            self._media_client = Client(
+                file_name, self.address, host_port, rtp_port)
+            self._media_client.establish_rtsp_connection()
+            if self._media_client.is_rtsp_connected:
+                self._media_client.send_setup_request()
+                self._media_client.send_play_request()
+        else:
+            if self._media_client.is_rtsp_connected:
+                if not self._media_client.is_receiving_rtp:
+                    return
+                frame = self._media_client.get_next_frame()
+                if frame != None:
+                    if self.clear_output:  # used when updating lines printed
+                        self.send_response(self.iopub_socket,
+                                            'clear_output', {"wait": True})
+                    image_buffer = frame[0].getvalue()
+                    # self.log.debug(image.getvalue())
+                    image_type = imghdr.what(None, image_buffer)
+                    # self.log.debug(image_type)
+                    image_data = base64.b64encode(image_buffer).decode('ascii')
+                    # self.log.debug(image_data)
+                    self.send_response(self.iopub_socket, 'display_data', {
+                        'data': {
+                            'image/' + image_type: image_data
+                        },
+                        'metadata': {}
+                    })
 
     def kill_task(self):
         master = rpyc.classic.connect(self.address)
         thread = master.modules.threading
         # print(thread.enumerate()) # kill remote's thread
-        kills = [i.ident for i in thread.enumerate() if i.ident not in [thread.main_thread().ident, thread.get_ident()]]
+        lists = [i for i in thread.enumerate() if i.__class__.__name__ not in [
+            'RtspServerThread', '_MainThread']]
+        kills = [i.ident for i in lists if i.ident not in [
+            thread.main_thread().ident, thread.get_ident()]]
         # print(kills)
         for id in kills:
             try:
@@ -217,7 +211,7 @@ class RPycKernel(IPythonKernel):
 
     def do_handle(self, code):
         # self.log.debug(code)
-        # code = re.sub(r'([#](.*)[\n])', '', code) # clear '# etc...' but bug have "#" 
+        # code = re.sub(r'([#](.*)[\n])', '', code) # clear '# etc...' but bug have "#"
         # self.log.debug(code)
 
         cmds = self.pattern.findall(code)
@@ -227,7 +221,7 @@ class RPycKernel(IPythonKernel):
                 # print(_format % cmd[1])
                 exec(_format % cmd[1])
         code = self.pattern.sub('', code)
-        
+
         # self.log.debug(code)
         return code
 
@@ -239,19 +233,11 @@ class RPycKernel(IPythonKernel):
 
         # Handle the host call code
         code = self.do_handle(code)
-        
-        # return {
-        #         'status': 'ok', 
-        #         'execution_count': self.execution_count, 
-        #         'payload': [], 
-        #         'user_expressions': {}
-        #     }
 
         interrupted = False
 
         if self.check_connect():
             try:
-                self._maix_display()
                 try:
                     # with rpyc.classic.redirected_stdio(self.remote):
                     #     self.remote.execute(code)
@@ -260,14 +246,17 @@ class RPycKernel(IPythonKernel):
                     # self.remote.execute("raise KeyboardInterrupt") # maybe raise main_thread Exception
                     interrupted = True
                     self.kill_task()
-                    self.log.error('\r\nTraceback (most recent call last):\r\n  File "<string>", line 1, in <module>\r\nKeyboardInterrupt\r\n')
+                    self.log.error(
+                        '\r\nTraceback (most recent call last):\r\n  File "<string>", line 1, in <module>\r\nKeyboardInterrupt\r\n')
                     # raise e
-            except EOFError as e: # remote stream has been closed(cant return info)
+            # remote stream has been closed(cant return info)
+            except EOFError as e:
                 # self.remote.close() # not close self
-                self.remote.modules.os._exit(233) # should close remote
+                self.remote.modules.os._exit(233)  # should close remote
                 self.log.debug(e)
             except Exception as e:
                 self.log.error(e)
+                # raise e
             finally:
                 self._stop_display()
 
@@ -275,8 +264,8 @@ class RPycKernel(IPythonKernel):
             return {'status': 'abort', 'execution_count': self.execution_count}
 
         return {
-                'status': 'ok', 
-                'execution_count': self.execution_count, 
-                'payload': [], 
-                'user_expressions': {}
-            }
+            'status': 'ok',
+            'execution_count': self.execution_count,
+            'payload': [],
+            'user_expressions': {}
+        }
