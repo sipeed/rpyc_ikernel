@@ -131,7 +131,10 @@ class RPycKernel(IPythonKernel):
             self.remote.modules.sys.stdout = sys.stdout
             self.remote.modules.sys.stderr = sys.stderr
             self.remote._config['sync_request_timeout'] = None
-            self.remote.modules["maix.display"].remote = self
+            try:
+                self.remote.modules["maix.display"].remote = self
+            except Exception as e:
+                pass
             return True
         # ConnectionRefusedError: [Errno 111] Connection refused
         except Exception as e:

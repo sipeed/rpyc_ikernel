@@ -6,17 +6,20 @@
 
 ## 内核介绍
 
-1. 继承 IPythonKernel（iPython），支持 Python3 下的补全代码（tab）。
+继承 IPythonKernel（iPython）类，以更少的占用（12~32M）支持低端硬件（armv7l）进行 Python 编程与实时图像、视频推流。
 
-2. 以远端（remote）代码为执行对象，服务轻量化，内存占用小，内置如下指令。
+- 通过 [rpyc](https://github.com/tomerfiliba-org/rpyc) 实现远程调用（RPC）核心。
+
+- 通过 [MaixPy3](https://github.com/sipeed/MaixPy3) 给远程机器建立 RPC 服务，从而让本地代码在远端（remote）中运行。
+
+- 通过 [rtps+rtp](https://github.com/gabrieljablonski/rtsp-rtp-stream) 实现推流，支持摄像头（camera）与 PIL 图像（display）、文件（path）。
+
+### 特殊函数
 
 |  指令格式   | 指令功能  | 使用方法 |
 |  ----  | ----  |  ----  |
 | $connect("localhost")  | 连接到远端（remote）的 IP 地址（如："192.168.44.171:18812"） | [connect_hardware.ipynb](./examples/connect_hardware.ipynb) |
 | $exec("code")  | 该（code）代码会在本地环境（local）下执行。 | [usage_exec.ipynb](./examples/usage_exec.ipynb) |
-
-> 在 rpyc_ikernel 的 show image 依赖于 [maix.display](https://github.com/sipeed/pymaix/blob/main/maix/display.py) 的实现[rpyc_ikernel/kernel.py](https://github.com/sipeed/rpyc_ikernel/blob/master/rpyc_ikernel/kernel.py#L149)。
-> 为了跨平台实现，之后会使用 rtp socket 推流图像来接收，至少提升至 12 fps 请等待更新。
 
 ## 安装方法
 
@@ -29,24 +32,15 @@
 
 在你远端设备上使用 **ifconfig** 或 **ipconfig** 获取你的 IP 地址，请确保该地址可以 **ping** 通。
 
-确保远端的设备配置为 **Python3** 环境，输入 `pip3 install rpyc` 安装 **rpyc** 服务，复制下述指令运行即可启动服务。
+确保远端的设备配置为 **Python3** 环境，输入 `pip3 install maixpy3` 安装 **rpyc** 服务，复制下述指令运行即可启动服务。
 
 ```shell
-python3 -c "from rpyc.utils.server import ThreadedServer;from rpyc.core.service import SlaveService;server = ThreadedServer(SlaveService, hostname='0.0.0.0', port=18812, reuse_addr=True);server.start();" &
+python -c "from maix import rpycs; rpycs.start()" &
 ```
 
 此时你的 rpyc 服务已经起来了，请记住你的 IP 地址。
 
-> 
-> 也可用写入如下代码并保存到 rpycs.py 文件。
-> ```python
-> from rpyc.utils.server import ThreadedServer
-> from rpyc.core.service import SlaveService
-> server = ThreadedServer(SlaveService, hostname='0.0.0.0', port=18812, reuse_addr=True)
-> server.start()
-> ```
-> 输入命令 `python3 rpycs.py &` 即可在后台执行。
->
+> 提示：本机也可以安装该服务，并使用 localhost 的 IP 地址作为远端机器进行连接。
 
 ## 给【本地 Python 】安装 jupyter 环境。
 
@@ -101,17 +95,17 @@ print(platform.uname())
 uname_result(system='Linux', node='linux-lab', release='5.4.0-56-generic', version='#62-Ubuntu SMP Mon Nov 23 19:20:19 UTC 2020', machine='x86_64', processor='x86_64')
 ```
 
-## 常见问题解决方案
+## 常见问题
 
 可以通过以下顺序排查问题：
 
 ### 环境问题
 
-当发现一段简单的 Python 代码执行后没有反应，可以按以下步骤排查错误。
+当发现 Python 代码执行后没有反应，可以按以下步骤排查错误。
 
-- 检查远端设备的 rpyc 服务是否存在/运行。
+- 检查远端设备的 rpyc 服务是否存在/运行。（ps -a）
 - 若在代码仍然运行时，按中断按钮未能停止，请刷新代码网页或重启内核，再尝试执行代码。
-- 重启 jupyter notebook 服务，重新连接远端设备执行代码。
+- 重启 jupyter 服务，重新连接远端设备执行代码。
 
 如果仍然不行，则可能是网络问题，继续往下排查。
 
@@ -121,13 +115,13 @@ uname_result(system='Linux', node='linux-lab', release='5.4.0-56-generic', versi
 
 - 确定本机所属网络，试图 ping 通从机 IP 地址。
 - 确定远端所属网络，试图 ping 通主机 IP 地址。
-- 确保上级路由器转发规则没有对服务端口 18812 的限制。
+- 确保上级路由器转发规则没有对服务端口 18811、18812、18813 的限制。
 
 ### 其他问题
 
-拔插网线或重启机器也许就好了。
+拔插网线或重启机器、复位硬件等重置操作。
 
-## 更多
+## 设计灵感
 
 该内核设计取自以下 Python 仓库。
 
@@ -140,15 +134,4 @@ uname_result(system='Linux', node='linux-lab', release='5.4.0-56-generic', versi
 - [ubit_kernel](https://github.com/takluyver/ubit_kernel)
 - [remote_ikernel](https://github.com/tdaff/remote_ikernel)
 - [jupyter_micropython_kernel](https://github.com/goatchurchprime/jupyter_micropython_kernel)
-
-## upload pypi
-
-```shell
-python setup.py sdist build
-```
-
-```shell
-# pip install twine
-twine upload dist/* --verbose
-```
 
