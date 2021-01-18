@@ -56,7 +56,7 @@ pip3 install rpyc_ikernel && python3 -m rpyc_ikernel.install
 pip3 install -i https://pypi.tuna.tsinghua.edu.cn/simple rpyc_ikernel && python3 -m rpyc_ikernel.install
 ```
 
-上述包安装完成后，输入 `jupyter notebook` 会启动服务，启动后会自动打开系统默认浏览器，请选中 rpyc 的内核，新建（new）一个指定内核的代码文件。
+上述包安装完成后，输入 `jupyter notebook` 会启动服务，启动后会自动打开系统默认浏览器（推荐国外谷歌浏览器或国内360极速浏览器），请选中 rpyc 的内核，新建（new）一个指定内核的代码文件。
 
 ![kernels.png](./images/kernels.png)
 
