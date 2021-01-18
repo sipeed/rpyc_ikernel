@@ -30,6 +30,7 @@ except ImportError:
         def isalive(self):
             return self.proc.poll() is None
 
+from timerthread import Scheduler
 
 # from ipykernel.kernelbase import Kernel
 from ipykernel.ipkernel import IPythonKernel
@@ -102,9 +103,9 @@ class RPycKernel(IPythonKernel):
     implementation = 'rpyc_kernel'
 
     language_info = {'name': 'Python',
-                    'codemirror_mode': 'python',
-                    'mimetype': 'text/python',
-                    'file_extension': '.py'}
+                     'codemirror_mode': 'python',
+                     'mimetype': 'text/python',
+                     'file_extension': '.py'}
 
     def __init__(self, **kwargs):
         IPythonKernel.__init__(self, **kwargs)
@@ -113,6 +114,7 @@ class RPycKernel(IPythonKernel):
         self.address = "localhost"
         self._media_client = None
         self.clear_output = True
+        self._media_timer = None
         # for do_handle
         self.pattern = re.compile("^[$](.*?)[(](.*)[)]")
         self.commands = {
@@ -157,11 +159,21 @@ class RPycKernel(IPythonKernel):
         self.do_reconnect()
 
     def _stop_display(self):
+        if self._media_timer:
+            self._media_timer.cancel()
+            self._media_timer = None
         if self._media_client:
             self._media_client.__del__()
             self._media_client = None
 
-    def _update_display(self, file_name='/dev/display', host_port=18811, rtp_port=18813, fps=15):
+    def _start_display(self):
+        if self._media_timer == None:
+            def _update(self):
+                self._update_display()
+            self._media_timer = Scheduler('recur', 0.02, _update, args=(self,))
+            self._media_timer.start()
+
+    def _update_display(self, file_name='/dev/display', host_port=18811, rtp_port=18813):
         from .rtspc import Client
         if self._media_client == None:
             self._media_client = Client(
@@ -178,7 +190,7 @@ class RPycKernel(IPythonKernel):
                 if frame != None:
                     if self.clear_output:  # used when updating lines printed
                         self.send_response(self.iopub_socket,
-                                            'clear_output', {"wait": True})
+                                           'clear_output', {"wait": True})
                     image_buffer = frame[0].getvalue()
                     # self.log.debug(image.getvalue())
                     image_type = imghdr.what(None, image_buffer)
@@ -247,7 +259,7 @@ class RPycKernel(IPythonKernel):
                     # self.remote.execute("raise KeyboardInterrupt") # maybe raise main_thread Exception
                     interrupted = True
                     self.kill_task()
-                    self.log.debug(
+                    self.log.info(
                         '\r\nTraceback (most recent call last):\r\n  File "<string>", line 1, in <module>\r\nKeyboardInterrupt\r\n')
                     # raise e
             # remote stream has been closed(cant return info)
