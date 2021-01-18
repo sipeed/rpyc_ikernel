@@ -6,7 +6,7 @@
 
 ## 内核介绍
 
-继承 IPythonKernel（iPython）类，以更少的占用（12~32M）支持低端硬件（armv7l）进行 Python 编程与实时图像、视频推流。
+继承 IPythonKernel（iPython）类，以更少的占用（16~32M）支持低端硬件（armv7l）进行 Python 编程与实时图像、视频推流。
 
 - 通过 [rpyc](https://github.com/tomerfiliba-org/rpyc) 实现远程调用（RPC）核心。
 
