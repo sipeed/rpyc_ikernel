@@ -116,7 +116,7 @@ class RPycKernel(IPythonKernel):
         self.clear_output = True
         self._media_timer = None
         # for do_handle
-        self.pattern = re.compile("^[$](.*?)[(](.*)[)]")
+        self.pattern = re.compile("[$#](.*?)[(](.*)[)]")
         self.commands = {
             'exec': '%s',
             'connect': 'self.connect_remote(%s)',
@@ -259,8 +259,7 @@ class RPycKernel(IPythonKernel):
                     # self.remote.execute("raise KeyboardInterrupt") # maybe raise main_thread Exception
                     interrupted = True
                     self.kill_task()
-                    self.log.info(
-                        '\r\nTraceback (most recent call last):\r\n  File "<string>", line 1, in <module>\r\nKeyboardInterrupt\r\n')
+                    print('\r\nTraceback (most recent call last):\r\n  File "<string>", line unknown, in <module>\r\nRemote.KeyboardInterrupt\r\n')
                     # raise e
             # remote stream has been closed(cant return info)
             except EOFError as e:
