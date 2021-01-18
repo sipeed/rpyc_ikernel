@@ -10,7 +10,7 @@
 
 - 通过 [rpyc](https://github.com/tomerfiliba-org/rpyc) 实现远程调用（RPC）核心。
 
-- 通过 [MaixPy3](https://github.com/sipeed/MaixPy3) 给远程机器建立 RPC 服务，从而让本地代码传给远端（remote）运行。
+- 通过 [MaixPy3](https://github.com/sipeed/MaixPy3) 给远程机器建立 RPC 服务，传本地代码给远端（remote）运行。
 
 - 通过 [rtps+rtp](https://github.com/gabrieljablonski/rtsp-rtp-stream) 实现推流，支持摄像头（camera）与 PIL 图像（display）、文件（path）。
 
