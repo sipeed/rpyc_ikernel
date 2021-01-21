@@ -131,6 +131,7 @@ class RPycKernel(IPythonKernel):
             self.remote.modules.sys.stdout = sys.stdout
             self.remote.modules.sys.stderr = sys.stderr
             self.remote._config['sync_request_timeout'] = None
+            self.remote_exec = rpyc.async_(self.remote.modules.builtins.exec)
             try:
                 self.remote.modules["maix.display"].remote = self
             except Exception as e:
@@ -255,9 +256,19 @@ class RPycKernel(IPythonKernel):
         if self.check_connect():
             try:
                 try:
+                    # self.remote.modules.builtins.exec(code)
+                    self.result = self.remote_exec(code)
+                    # self.result.wait()
+                    # def get_result(result):
+                    #     if result.error:
+                    #         pass # is error
+                    #     # print('get_result', result, result.value)
+                    # self.result.add_callback(get_result)
+                    while self.result.ready == False:
+                        time.sleep(0.1) # for while True: pass
                     # with rpyc.classic.redirected_stdio(self.remote):
                     #     self.remote.execute(code)
-                    self.remote.execute(code)
+                    # self.remote.execute(code) # on Windows cant KeyboardInterrupt.
                 except KeyboardInterrupt as e:
                     # self.remote.execute("raise KeyboardInterrupt") # maybe raise main_thread Exception
                     interrupted = True
