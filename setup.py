@@ -11,7 +11,7 @@ except ImportError:
 
 setup(
     name="rpyc_ikernel",
-    version="0.2.4",
+    version="0.2.5",
     description="rpyc for jupyter kernel",
     author="Juwan",
     author_email="juwan@sipeed.com",

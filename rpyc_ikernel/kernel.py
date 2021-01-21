@@ -116,7 +116,7 @@ class RPycKernel(IPythonKernel):
         self.clear_output = True
         self._media_timer = None
         # for do_handle
-        self.pattern = re.compile("[$#](.*?)[(](.*)[)]")
+        self.pattern = re.compile("[$](.*?)[(](.*)[)]")
         self.commands = {
             'exec': '%s',
             'connect': 'self.connect_remote(%s)',
@@ -131,7 +131,8 @@ class RPycKernel(IPythonKernel):
             self.remote.modules.sys.stdout = sys.stdout
             self.remote.modules.sys.stderr = sys.stderr
             self.remote._config['sync_request_timeout'] = None
-            self.remote_exec = rpyc.async_(self.remote.modules.builtins.exec)
+            # self.remote_exec = rpyc.async_(self.remote.modules.builtins.exec) # Independent namespace
+            self.remote_exec = rpyc.async_(self.remote.execute) # Common namespace
             try:
                 self.remote.modules["maix.display"].remote = self
             except Exception as e:
@@ -259,16 +260,17 @@ class RPycKernel(IPythonKernel):
                     # self.remote.modules.builtins.exec(code)
                     self.result = self.remote_exec(code)
                     # self.result.wait()
-                    # def get_result(result):
-                    #     if result.error:
-                    #         pass # is error
-                    #     # print('get_result', result, result.value)
-                    # self.result.add_callback(get_result)
+                    def get_result(result):
+                        if result.error:
+                            pass # is error
+                            print(result.value)
+                        # print('get_result', result, result.value, result.error)
+                    self.result.add_callback(get_result)
                     while self.result.ready == False:
-                        time.sleep(0.1) # for while True: pass
+                        time.sleep(0.1) # print(end='')
                     # with rpyc.classic.redirected_stdio(self.remote):
                     #     self.remote.execute(code)
-                    # self.remote.execute(code) # on Windows cant KeyboardInterrupt.
+                    # self.remote.execute(code)
                 except KeyboardInterrupt as e:
                     # self.remote.execute("raise KeyboardInterrupt") # maybe raise main_thread Exception
                     interrupted = True
