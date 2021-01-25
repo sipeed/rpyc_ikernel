@@ -30,7 +30,7 @@ except ImportError:
         def isalive(self):
             return self.proc.poll() is None
 
-from timerthread import Scheduler
+from .scheduler import Scheduler
 
 # from ipykernel.kernelbase import Kernel
 from ipykernel.ipkernel import IPythonKernel
