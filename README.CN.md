@@ -1,8 +1,6 @@
 
-# &emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp; 
 <p align="center">
-    <img src="https://www.sipeed.com/static/images/logo_1.svg" title="" alt="Sipeed logo">
-    <h1 align="center">💮 RPyC の iPykernel 🐹</h1>
+    <h1 align="center">💮 RPyC の IPykernel 🐹</h1>
 </p>
 
 [![MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
