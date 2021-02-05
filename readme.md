@@ -1,87 +1,92 @@
 
-# &emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp; 💮 RPyC の iPykernel 🐹
+# &emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp; 
+<p align="center">
+    <img src="https://www.sipeed.com/static/images/logo_1.svg" title="" alt="Sipeed logo">
+    <h1 align="center">💮 RPyC の iPykernel 🐹</h1>
+</p>
 
 [![MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 [![PyPI version](https://badge.fury.io/py/rpyc-ikernel.svg)](https://badge.fury.io/py/rpyc-ikernel)
 
-## 内核介绍
+English | [简体中文](./README.CN.md) 
 
-继承 IPythonKernel（iPython）类，以更少的占用（16~32M）支持低端硬件（armv7l）进行 Python 编程与实时图像、视频推流。
+## Kernel introduction
 
-- 通过 [rpyc](https://github.com/tomerfiliba-org/rpyc) 实现远程调用（RPC）核心。
+Inherit the IPythonKernel (iPython) class, and support low-end hardware (armv7l) for Python programming and real-time image and video streaming with less occupation (16~32M).
 
-- 通过 [MaixPy3](https://github.com/sipeed/MaixPy3) 给远程机器建立 RPC 服务，传本地代码给远端（remote）运行。
+- Implement remote call (RPC) core through [rpyc](https://github.com/tomerfiliba-org/rpyc).
 
-- 通过 [rtsp+rtp](https://github.com/gabrieljablonski/rtsp-rtp-stream) 实现推流，支持摄像头（camera）与 PIL 图像（display）、文件（path）。
+- Establish an RPC service for the remote machine through [MaixPy3](https://github.com/sipeed/MaixPy3), and pass the local code to the remote (remote) to run.
 
-### 特殊函数
+- Realize streaming through [rtsp+rtp](https://github.com/gabrieljablonski/rtsp-rtp-stream), support camera and PIL image (display), file (path).
 
-|  指令格式   | 指令功能  | 使用方法 |
-|  ----  | ----  |  ----  |
-| $connect("localhost")  | 连接到远端（remote）的 IP 地址（如："192.168.44.171:18812"） | [connect_hardware.ipynb](./examples/connect_hardware.ipynb) |
-| $exec("code")  | 该（code）代码会在本地环境（local）下执行。 | [usage_exec.ipynb](./examples/usage_exec.ipynb) |
+### Special functions
 
-## 安装方法
+| Command format | Command function | How to use |
+| ---- | ---- | ---- |
+| $connect("localhost") | Connect to the remote IP address (for example: "192.168.44.171:18812") | [connect_hardware.ipynb](./examples/connect_hardware.ipynb) |
+| $exec("code") | The (code) code will be executed in the local environment (local). | [usage_exec.ipynb](./examples/usage_exec.ipynb) |
 
-按如下顺序说明：
+## installation method
 
-- 给【远端 Python 】配置 rpyc 服务。
-- 给【本地 Python 】安装 jupyter 环境。
+Explain in the following order:
 
-## 给【远端 Python 】配置 rpyc 服务。
+- Configure rpyc service for [Remote Python].
+- Install jupyter environment for [Local Python].
 
-在你远端设备上使用 **ifconfig** 或 **ipconfig** 获取你的 IP 地址，请确保该地址可以 **ping** 通。
+## Configure rpyc service for [Remote Python].
 
-确保远端的设备配置为 **Python3** 环境，输入 `pip3 install maixpy3` 安装 **rpyc** 服务，复制下述指令运行即可启动服务。
+Use **ifconfig** or **ipconfig** on your remote device to get your IP address, please make sure that the address can be **ping**.
+
+Make sure that the remote device is configured in the **Python3** environment, enter `pip3 install maixpy3` to install the **rpyc** service, copy the following command and run it to start the service.
 
 ```shell
 python -c "from maix import rpycs; rpycs.start()" &
 ```
 
-此时你的 rpyc 服务已经起来了，请记住你的 IP 地址。
+At this time your rpyc service has been up, please remember your IP address.
 
-> 提示：本机也可以安装该服务，并使用 localhost 的 IP 地址作为远端机器进行连接。
+> Tip: You can also install the service on your local machine, and use the IP address of localhost as a remote machine to connect.
+## Install jupyter environment for [local Python].
 
-## 给【本地 Python 】安装 jupyter 环境。
-
-以 Python3 为例，请确保已经安装了 python3 和 pip3 基本环境/命令，在命令行下方调用该代码即可。
+Take Python3 as an example, please make sure that the basic environment/commands of python3 and pip3 have been installed, just call the code under the command line.
 
 ```shell
 pip3 install rpyc_ikernel && python3 -m rpyc_ikernel.install
 ```
 
-国内下载加速可以使用清华源。
+Tsinghua source can be used for domestic download acceleration.
 
 ```shell
 pip3 install -i https://pypi.tuna.tsinghua.edu.cn/simple rpyc_ikernel && python3 -m rpyc_ikernel.install
 ```
 
-上述包安装完成后，输入 `jupyter notebook` 会启动服务，启动后会自动打开系统默认浏览器（推荐国外谷歌浏览器或国内360极速浏览器），请选中 rpyc 的内核，新建（new）一个指定内核的代码文件。
+After the above package is installed, enter `jupyter notebook` to start the service. After startup, the system default browser will be opened automatically (recommended foreign Google browser or domestic 360 speed browser), please select the kernel of rpyc and create a new (new) designation The code file of the kernel.
 
 ![kernels.png](./images/kernels.png)
 
-如果没有看到，则可以输入 `python3 -m rpyc_ikernel.install` 完成内核的安装，此时就可以看到了。
+If you don't see it, you can enter `python3 -m rpyc_ikernel.install` to complete the kernel installation, and you can see it now.
 
-若出现如下找不到模块常见错误，常见于 py2 和 py3 环境不分，请确认系统环境变量是否为 python / pip 命令。
+If there are the following common errors that cannot find modules, they are common in py2 and py3 environments. Please confirm whether the system environment variable is python / pip command.
 
-- `/usr/bin/python3: Error while finding module specification for 'rpyc-ikernel.install' (ModuleNotFoundError: No module named 'rpyc-ikernel')`
+- `/usr/bin/python3: Error while finding module specification for'rpyc-ikernel.install' (ModuleNotFoundError: No module named'rpyc-ikernel')`
 - `/usr/bin/python: No module named rpyc-ikernel`
 
-> 有些机器环境变量的 python3 为 python ，或是并存多个版本的 python 和 pip ，那么此时就需要使用 python 指令。
+> For some machine environment variables, python3 is python, or multiple versions of python and pip coexist, then the python command is required at this time.
 
-可输入 `jupyter kernelspec list` 可以查看当前安装的 jupyter 内核，若是没有 rpyc 则没有安装该内核。
+You can enter `jupyter kernelspec list` to view the currently installed jupyter kernel. If there is no rpyc, the kernel is not installed.
 
 ```shell
 Available kernels:
-  bash           /home/juwan/.local/share/jupyter/kernels/bash
-  micropython    /home/juwan/.local/share/jupyter/kernels/micropython
-  python3        /home/juwan/.local/share/jupyter/kernels/python3
-  rpyc           /home/juwan/.local/share/jupyter/kernels/rpyc
+  bash /home/juwan/.local/share/jupyter/kernels/bash
+  micropython /home/juwan/.local/share/jupyter/kernels/micropython
+  python3 /home/juwan/.local/share/jupyter/kernels/python3
+  rpyc /home/juwan/.local/share/jupyter/kernels/rpyc
 ```
 
-## 在 Notebook 中运行 Python 代码
+## Run Python code in Notebook
 
-在运行代码前，请配置 IP 地址进行连接，否则默认连接到 "localhost" 的地址请求服务。
+Before running the code, please configure the IP address to connect, otherwise it will connect to the "localhost" address to request the service by default.
 
 ```python
 $connect("192.168.43.44")
@@ -89,49 +94,48 @@ import platform
 print(platform.uname())
 ```
 
-可见返回结果如下：
+It can be seen that the returned results are as follows:
 
 ```shell
-uname_result(system='Linux', node='linux-lab', release='5.4.0-56-generic', version='#62-Ubuntu SMP Mon Nov 23 19:20:19 UTC 2020', machine='x86_64', processor='x86_64')
+uname_result(system='Linux', node='linux-lab', release='5.4.0-56-generic', version='#62-Ubuntu SMP Mon Nov 23 19:20:19 UTC 2020', machine= 'x86_64', processor='x86_64')
 ```
 
-## 常见问题
+## common problem
 
-可以通过以下顺序排查问题：
+You can troubleshoot problems in the following order:
 
-### 环境问题
+### Environmental issues
 
-当发现 Python 代码执行后没有反应，可以按以下步骤排查错误。
+When you find that there is no response after the Python code is executed, you can follow the steps below to troubleshoot the error.
 
-- 检查远端设备的 rpyc 服务是否存在/运行。（ps -a）
-- 若在代码仍然运行时，按中断按钮未能停止，请刷新代码网页或重启内核，再尝试执行代码。
-- 重启 jupyter 服务，重新连接远端设备执行代码。
+- Check if the rpyc service of the remote device exists/runs. (Ps -a)
+- If pressing the interrupt button fails to stop while the code is still running, please refresh the code page or restart the kernel and try to execute the code again.
+- Restart the jupyter service and reconnect to the remote device to execute code.
 
-如果仍然不行，则可能是网络问题，继续往下排查。
+If it still does not work, it may be a network problem, so continue to troubleshoot.
 
-### 网络问题
+### Internet problem
 
-确保本机可以连接到远端机器，使用 Ping 或 socket 等工具进行连接。
+Make sure that the local machine can connect to the remote machine, and use Ping or socket to connect.
 
-- 确定本机所属网络，试图 ping 通从机 IP 地址。
-- 确定远端所属网络，试图 ping 通主机 IP 地址。
-- 确保上级路由器转发规则没有对服务端口 18811、18812、18813 的限制。
+- Determine the network to which the machine belongs, and try to ping the IP address of the slave machine.
+- Determine the network to which the remote end belongs, and try to ping the host IP address.
+- Make sure that the forwarding rules of the upper router do not restrict the service ports 18811, 18812, 18813.
 
-### 其他问题
+### other problems
 
-拔插网线或重启机器、复位硬件等重置操作。
+Unplug the network cable or restart the machine, reset the hardware and other reset operations.
 
-## 设计灵感
+## Design inspiration
 
-该内核设计取自以下 Python 仓库。
+The kernel design is taken from the following Python repository.
 
 - [ipykernel](https://github.com/ipython/ipykernel)
 - [rpyc](https://github.com/tomerfiliba-org/rpyc)
 
-参考内核如下。
+The reference kernel is as follows.
 
 - [bash_kernel](https://github.com/takluyver/bash_kernel)
 - [ubit_kernel](https://github.com/takluyver/ubit_kernel)
 - [remote_ikernel](https://github.com/tdaff/remote_ikernel)
 - [jupyter_micropython_kernel](https://github.com/goatchurchprime/jupyter_micropython_kernel)
-
