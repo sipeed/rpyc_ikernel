@@ -22,7 +22,7 @@
 
 |  指令格式   | 指令功能  | 使用方法 |
 |  ----  | ----  |  ----  |
-| $connect("localhost")  | 连接到远端（remote）的 IP 地址（如："192.168.44.171:18812"） | [connect_hardware.ipynb](./examples/connect_hardware.ipynb) |
+| $connect("localhost")  | 连接到远端（remote）的 IP 地址（如："192.168.44.171:18812"） | [usage_display.ipynb](./examples/usage_display.ipynb) |
 | $exec("code")  | 该（code）代码会在本地环境（local）下执行。 | [usage_exec.ipynb](./examples/usage_exec.ipynb) |
 
 ## 安装方法
