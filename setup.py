@@ -20,7 +20,7 @@ setup(
     packages=["rpyc_ikernel"],
     # scripts=scripts,
     # entry_points={"console_scripts": ["rpyc_ikernel = rpyc_ikernel.__main__:main"]},
-    install_requires=["notebook", "pexpect", "rpyc"],
+    install_requires=["notebook", "pexpect", "rpyc", "pillow"],
     tests_requires=["pytest", "scripttest"],
     classifiers=[
         "Programming Language :: Python :: 3",
