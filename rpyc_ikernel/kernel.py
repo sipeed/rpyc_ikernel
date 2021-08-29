@@ -167,9 +167,6 @@ class RPycKernel(IPythonKernel):
         if self._media_timer:
             self._media_timer.cancel()
             self._media_timer = None
-        if self._media_client:
-            self._media_client.__del__()
-            self._media_client = None
 
     def _start_display(self):
         if self._media_timer == None:
@@ -178,36 +175,24 @@ class RPycKernel(IPythonKernel):
             self._media_timer = Scheduler('recur', 0.02, _update, args=(self,))
             self._media_timer.start()
 
-    def _update_display(self, file_name='/dev/display', host_port=18811, rtp_port=18813):
-        from .rtspc import Client
-        if self._media_client == None:
-            self._media_client = Client(
-                file_name, self.address, host_port, rtp_port)
-            self._media_client.establish_rtsp_connection()
-            if self._media_client.is_rtsp_connected:
-                self._media_client.send_setup_request()
-                self._media_client.send_play_request()
-        else:
-            if self._media_client.is_rtsp_connected:
-                if not self._media_client.is_receiving_rtp:
-                    return
-                frame = self._media_client.get_next_frame()
-                if frame != None:
-                    if self.clear_output:  # used when updating lines printed
-                        self.send_response(self.iopub_socket,
-                                           'clear_output', {"wait": True})
-                    image_buffer = frame[0].getvalue()
-                    # self.log.debug(image.getvalue())
-                    image_type = imghdr.what(None, image_buffer)
-                    # self.log.debug(image_type)
-                    image_data = base64.b64encode(image_buffer).decode('ascii')
-                    # self.log.debug(image_data)
-                    self.send_response(self.iopub_socket, 'display_data', {
-                        'data': {
-                            'image/' + image_type: image_data
-                        },
-                        'metadata': {}
-                    })
+    def _update_display(self, host_port=18811):
+        pass
+        # if frame != None:
+        #     if self.clear_output:  # used when updating lines printed
+        #         self.send_response(self.iopub_socket,
+        #                             'clear_output', {"wait": True})
+        #     image_buffer = frame[0].getvalue()
+        #     # self.log.debug(image.getvalue())
+        #     image_type = imghdr.what(None, image_buffer)
+        #     # self.log.debug(image_type)
+        #     image_data = base64.b64encode(image_buffer).decode('ascii')
+        #     # self.log.debug(image_data)
+        #     self.send_response(self.iopub_socket, 'display_data', {
+        #         'data': {
+        #             'image/' + image_type: image_data
+        #         },
+        #         'metadata': {}
+        #     })
 
     def kill_task(self):
         master = rpyc.classic.connect(self.address)
