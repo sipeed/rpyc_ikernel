@@ -350,8 +350,8 @@ class RPycKernel(IPythonKernel):
                 self.remote.modules.os._exit(233)  # should close remote
                 self.log.debug(e)
             except Exception as e:
-                self.log.debug(e)
-                raise e
+                self.log.error(e)
+                # raise e
             finally:
                 self._stop_display()
 
