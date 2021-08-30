@@ -176,6 +176,7 @@ class RPycKernel(IPythonKernel):
         self.remote = None
         self.address = "localhost"
         self._media_client = None
+        self._media_display = False
         self.clear_output = True
         self._media_timer = None
         # for do_handle
@@ -232,6 +233,7 @@ class RPycKernel(IPythonKernel):
             self._media_timer = None
         if self._media_client:
             self._media_client = None
+        self._media_display = False
 
     def _start_display(self):
         if self._media_timer == None:
@@ -239,6 +241,7 @@ class RPycKernel(IPythonKernel):
                 self._update_display()
             self._media_timer = Scheduler('recur', 0.02, _update, args=(self,))
             self._media_timer.start()
+            self._media_display = True
 
     def _update_display(self, host_port=18811):
         # self.log.debug('_update_display... (%s)' % self._media_client)
@@ -248,6 +251,14 @@ class RPycKernel(IPythonKernel):
             try:
                 content = next(self._media_client.iter_content())
                 # print(len(content))
+                from PIL import Image
+                from io import BytesIO
+                tmp = Image.open(BytesIO(content))
+                buf = BytesIO()
+                tmp.resize((tmp.size[0] * 2, tmp.size[1] * 2)).save(buf, format = "JPEG")
+                buf.flush()
+                content = buf.getvalue()
+                
                 if self.clear_output:  # used when updating lines printed
                     self.send_response(self.iopub_socket,
                                         'clear_output', {"wait": True})
