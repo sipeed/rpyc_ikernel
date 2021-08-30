@@ -36,7 +36,70 @@ from .scheduler import Scheduler
 from ipykernel.ipkernel import IPythonKernel
 
 # Blend in with the notebook logging
+class MjpgReader():
+    """
+    MJPEG format
 
+    Content-Type: multipart/x-mixed-replace; boundary=--BoundaryString
+    --BoundaryString
+    Content-type: image/jpg
+    Content-Length: 12390
+
+    ... image-data here ...
+
+
+    --BoundaryString
+    Content-type: image/jpg
+    Content-Length: 12390
+
+    ... image-data here ...
+    """
+
+    def __init__(self, url: str):
+        self._url = url
+        import io
+        import requests
+        self.r = requests.get(self._url, stream=True)
+
+        # parse boundary
+        content_type = self.r.headers['content-type']
+        index = content_type.rfind("boundary=")
+        assert index != 1
+        boundary = content_type[index+len("boundary="):] + "\r\n"
+        self.boundary = boundary.encode('utf-8')
+
+        self.rd = io.BufferedReader(self.r.raw)
+
+    def __del__(self):
+        if self.r:
+            self.r.close()
+            self.r = None
+
+    def iter_content(self):
+        """
+        Raises:
+            RuntimeError
+        """
+        self._skip_to_boundary(self.rd, self.boundary)
+        length = self._parse_length(self.rd)
+        yield self.rd.read(length)
+
+    def _parse_length(self, rd) -> int:
+        length = 0
+        while True:
+            line = rd.readline()
+            if line == b'\r\n':
+                return length
+            if line.startswith(b"Content-Length"):
+                length = int(line.decode('utf-8').split(": ")[1])
+                assert length > 0
+
+    def _skip_to_boundary(self, rd, boundary: bytes):
+        for _ in range(10):
+            if boundary in rd.readline():
+                break
+        else:
+            raise RuntimeError("Boundary not detected:", boundary)
 
 def _setup_logging(verbose=logging.INFO):
 
@@ -167,6 +230,8 @@ class RPycKernel(IPythonKernel):
         if self._media_timer:
             self._media_timer.cancel()
             self._media_timer = None
+        if self._media_client:
+            self._media_client = None
 
     def _start_display(self):
         if self._media_timer == None:
@@ -176,30 +241,36 @@ class RPycKernel(IPythonKernel):
             self._media_timer.start()
 
     def _update_display(self, host_port=18811):
-        pass
-        # if frame != None:
-        #     if self.clear_output:  # used when updating lines printed
-        #         self.send_response(self.iopub_socket,
-        #                             'clear_output', {"wait": True})
-        #     image_buffer = frame[0].getvalue()
-        #     # self.log.debug(image.getvalue())
-        #     image_type = imghdr.what(None, image_buffer)
-        #     # self.log.debug(image_type)
-        #     image_data = base64.b64encode(image_buffer).decode('ascii')
-        #     # self.log.debug(image_data)
-        #     self.send_response(self.iopub_socket, 'display_data', {
-        #         'data': {
-        #             'image/' + image_type: image_data
-        #         },
-        #         'metadata': {}
-        #     })
+        # self.log.debug('_update_display... (%s)' % self._media_client)
+        if self._media_client == None:
+            self._media_client = MjpgReader("http://%s:%d" % (self.address, host_port))
+        else:
+            try:
+                content = next(self._media_client.iter_content())
+                # print(len(content))
+                if self.clear_output:  # used when updating lines printed
+                    self.send_response(self.iopub_socket,
+                                        'clear_output', {"wait": True})
+                # self.log.debug(image.getvalue())
+                image_type = imghdr.what(None, content)
+                # self.log.debug(image_type)
+                image_data = base64.b64encode(content).decode('ascii')
+                # self.log.debug(image_data)
+                self.send_response(self.iopub_socket, 'display_data', {
+                    'data': {
+                        'image/' + image_type: image_data
+                    },
+                    'metadata': {}
+                })
+            except ValueError as e:
+              print(e)
 
     def kill_task(self):
         master = rpyc.classic.connect(self.address)
         thread = master.modules.threading
         # print(thread.enumerate()) # kill remote's thread
         lists = [i for i in thread.enumerate() if i.__class__.__name__ not in [
-            'RtspServerThread', '_MainThread']]
+            'MjpgServerThread', '_MainThread']]
         kills = [i.ident for i in lists if i.ident not in [
             thread.main_thread().ident, thread.get_ident()]]
         # print(kills)
@@ -268,8 +339,8 @@ class RPycKernel(IPythonKernel):
                 self.remote.modules.os._exit(233)  # should close remote
                 self.log.debug(e)
             except Exception as e:
-                self.log.error(e)
-                # raise e
+                self.log.debug(e)
+                raise e
             finally:
                 self._stop_display()
 
