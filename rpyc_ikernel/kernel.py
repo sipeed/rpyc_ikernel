@@ -56,15 +56,16 @@ class MjpgReader():
     """
 
     def __init__(self, url: str):
-        self._url = url
         import io
         import requests
+        self._url = url
+        self.r = None
         self.r = requests.get(self._url, stream=True)
 
         # parse boundary
         content_type = self.r.headers['content-type']
         index = content_type.rfind("boundary=")
-        assert index != 1
+        # assert index != 1
         boundary = content_type[index+len("boundary="):] + "\r\n"
         self.boundary = boundary.encode('utf-8')
 
@@ -176,7 +177,6 @@ class RPycKernel(IPythonKernel):
         self.remote = None
         self.address = "localhost"
         self._media_client = None
-        self._media_display = False
         self.clear_output = True
         self._media_timer = None
         # for do_handle
@@ -228,25 +228,34 @@ class RPycKernel(IPythonKernel):
         self.do_reconnect()
 
     def _stop_display(self):
-        if self._media_timer:
-            self._media_timer.cancel()
-            self._media_timer = None
-        if self._media_client:
-            self._media_client = None
-        self._media_display = False
-
+        try:
+            if self._media_timer:
+                self._media_timer.cancel()
+                self._media_timer = None
+            if self._media_client:
+                self._media_client = None
+        except Exception as e:
+            self.log.debug(e)
+          
     def _start_display(self):
-        if self._media_timer == None:
-            def _update(self):
-                self._update_display()
-            self._media_timer = Scheduler('recur', 0.02, _update, args=(self,))
-            self._media_timer.start()
-            self._media_display = True
+        try:
+            if self._media_timer == None:
+                def _update(self):
+                    self._update_display()
+                self._media_timer = Scheduler('recur', 0.02, _update, args=(self,))
+                self._media_timer.start()
+                self._media_display = True
+        except Exception as e:
+            self.log.debug(e)
 
     def _update_display(self, host_port=18811):
+        from requests import exceptions
         # self.log.debug('_update_display... (%s)' % self._media_client)
         if self._media_client == None:
-            self._media_client = MjpgReader("http://%s:%d" % (self.address, host_port))
+            try:
+                self._media_client = MjpgReader("http://%s:%d" % (self.address, host_port))
+            except exceptions.ConnectionError as e:
+                self.log.debug(e)
         else:
             try:
                 content = next(self._media_client.iter_content())
@@ -274,7 +283,7 @@ class RPycKernel(IPythonKernel):
                     'metadata': {}
                 })
             except ValueError as e:
-              print(e)
+              self.log.debug(e)
 
     def kill_task(self):
         master = rpyc.classic.connect(self.address)
