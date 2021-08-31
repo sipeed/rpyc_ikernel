@@ -32,6 +32,19 @@ except ImportError:
 
 from .scheduler import Scheduler
 
+from .adb import bind_rpycs
+
+def config_maixpy3():
+    from threading import Thread
+    import time
+    def tmp():
+        while True:
+          bind_rpycs()
+          time.sleep(3)
+    t = Thread(target=tmp,args=())
+    t.setDaemon(True)
+    t.start()
+
 # from ipykernel.kernelbase import Kernel
 from ipykernel.ipkernel import IPythonKernel
 
@@ -185,7 +198,7 @@ class RPycKernel(IPythonKernel):
             'exec': '%s',
             'connect': 'self.connect_remote(%s)',
         }
-
+        config_maixpy3()
         self.do_reconnect()
 
     def do_reconnect(self):
