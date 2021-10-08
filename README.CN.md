@@ -39,7 +39,7 @@
 确保远端的设备配置为 **Python3** 环境，输入 `pip3 install maixpy3` 安装 **rpyc** 服务，复制下述指令运行即可启动服务。
 
 ```shell
-python -c "from maix import rpycs; rpycs.start()" &
+maixpy3_rpycs &
 ```
 
 此时你的 rpyc 服务已经起来了，请记住你的 IP 地址。
