@@ -39,7 +39,7 @@ Use **ifconfig** or **ipconfig** on your remote device to get your IP address, p
 Make sure that the remote device is configured in the **Python3** environment, enter `pip3 install maixpy3` to install the **rpyc** service, copy the following command and run it to start the service.
 
 ```shell
-python -c "from maix import rpycs; rpycs.start()" &
+maixpy3_rpycs &
 ```
 
 At this time your rpyc service has been up, please remember your IP address.
