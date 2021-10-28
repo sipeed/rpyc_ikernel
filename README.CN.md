@@ -14,9 +14,7 @@
 
 - 通过 [rpyc](https://github.com/tomerfiliba-org/rpyc) 实现远程调用（RPC）核心。
 
-- 通过 [MaixPy3](https://github.com/sipeed/MaixPy3) 给远程机器建立 RPC 服务，传本地代码给远端（remote）运行。
-
-- 通过 [rtsp+rtp](https://github.com/gabrieljablonski/rtsp-rtp-stream) 实现推流，支持摄像头（camera）与 PIL 图像（display）、文件（path）。
+- 通过 [MaixPy3](https://github.com/sipeed/MaixPy3) 给远程机器建立 RPC 服务，传本地代码给远端（remote）运行，其中图传使用 mjpg 编码。
 
 ### 特殊函数
 
@@ -83,9 +81,11 @@ Available kernels:
   rpyc           /home/juwan/.local/share/jupyter/kernels/rpyc
 ```
 
-## 在 Notebook 中运行 Python 代码
+## *在 Notebook 中运行 Python 代码
 
 在运行代码前，请配置 IP 地址进行连接，否则默认连接到 "localhost" 的地址请求服务。
+
+> 注意，现在支持 `adb shell` 自动连接和配置设备端口转发， 不再需要这个指令了。
 
 ```python
 $connect("192.168.43.44")

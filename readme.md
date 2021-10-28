@@ -6,7 +6,7 @@
 [![MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 [![PyPI version](https://badge.fury.io/py/rpyc-ikernel.svg)](https://badge.fury.io/py/rpyc-ikernel)
 
-English | [简体中文](./README.CN.md) 
+English | [简体中文](./README.CN.md)
 
 ## Kernel introduction
 
@@ -15,8 +15,6 @@ Inherit the IPythonKernel (iPython) class, and support low-end hardware (armv7l)
 - Implement remote call (RPC) core through [rpyc](https://github.com/tomerfiliba-org/rpyc).
 
 - Establish an RPC service for the remote machine through [MaixPy3](https://github.com/sipeed/MaixPy3), and pass the local code to the remote (remote) to run.
-
-- Realize streaming through [rtsp+rtp](https://github.com/gabrieljablonski/rtsp-rtp-stream), support camera and PIL image (display), file (path).
 
 ### Special functions
 
