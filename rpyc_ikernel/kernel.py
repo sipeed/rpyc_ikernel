@@ -16,6 +16,7 @@ import argparse
 import logging
 import time
 import traceback
+from PIL.Image import NONE
 import rpyc
 import sys
 import signal
@@ -121,8 +122,7 @@ def _setup_logging(verbose=logging.INFO):
     log.setLevel(verbose)
     # Logging on stderr
     console = logging.StreamHandler()
-    formatter = logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    formatter = logging.Formatter('%(asctime)s - %(filename)s[line:%(lineno)d] - %(levelname)s: %(message)s')
     console.setFormatter(formatter)
 
     log.handlers = []
@@ -201,6 +201,7 @@ class RPycKernel(IPythonKernel):
         config_maixpy3()
         self.do_reconnect()
 
+
     def do_reconnect(self):
         try:
             self.remote = rpyc.classic.connect(self.address)
@@ -208,8 +209,8 @@ class RPycKernel(IPythonKernel):
             self.remote.modules.sys.stdout = sys.stdout
             self.remote.modules.sys.stderr = sys.stderr
             self.remote._config['sync_request_timeout'] = None
-            # self.remote_exec = rpyc.async_(self.remote.modules.builtins.exec) # Independent namespace
-            self.remote_exec = rpyc.async_(self.remote.execute) # Common namespace
+            self.remote_exec = rpyc.async_(self.remote.modules.builtins.exec) # Independent namespace
+            # self.remote_exec = rpyc.async_(self.remote.execute) # Common namespace
             try:
                 self.remote.modules["maix.display"].remote = self
             except Exception as e:
@@ -218,7 +219,8 @@ class RPycKernel(IPythonKernel):
         # ConnectionRefusedError: [Errno 111] Connection refused
         except Exception as e:
             self.remote = None
-            self.log.info('%s on Remote IP: %s' % (repr(e), self.address))
+            self.log.debug('%s on Remote IP: %s' % (repr(e), self.address))
+            print("[ rpyc-kernel ]( Try ▶ again )")
         return False
 
     def check_connect(self):
@@ -241,36 +243,46 @@ class RPycKernel(IPythonKernel):
         self.do_reconnect()
 
     def _stop_display(self):
+        # return
         try:
+            self.log.debug("_stop_display %s" % self._media_client)
             if self._media_timer:
                 self._media_timer.cancel()
                 self._media_timer = None
             if self._media_client:
                 self._media_client = None
         except Exception as e:
-            self.log.debug(e)
-          
+            self.log.error(e)
+
     def _start_display(self):
+        # return
         try:
+            self.log.debug("_start_display %s" % self._media_client)
             if self._media_timer == None:
                 def _update(self):
                     self._update_display()
-                self._media_timer = Scheduler('recur', 0.02, _update, args=(self,))
+                self._media_timer = Scheduler('recur', 0.001, _update, args=(self,))
                 self._media_timer.start()
                 self._media_display = True
+            if self._media_client:
+                self._media_client = None
         except Exception as e:
-            self.log.debug(e)
+            self.log.error(e)
 
     def _update_display(self, host_port=18811):
-        from requests import exceptions
-        # self.log.debug('_update_display... (%s)' % self._media_client)
+        # return
+        # from requests import exceptions
+        self.log.debug('_update_display... (%s)' % self._media_client)
         if self._media_client == None:
+            # self.log.debug('connect... (%s)' % self._media_client)
+            # for i in range(3):
             try:
                 self._media_client = MjpgReader("http://%s:%d" % (self.address, host_port))
-            except exceptions.ConnectionError as e:
-                self.log.debug(e)
-        else:
+            except Exception as e:
+                self.log.error(e)
+        if self._media_client != None:
             try:
+                # self.log.debug('update... (%s)' % self._media_client)
                 content = next(self._media_client.iter_content())
                 # print(len(content))
                 from PIL import Image
@@ -280,7 +292,6 @@ class RPycKernel(IPythonKernel):
                 tmp.resize((tmp.size[0] * 2, tmp.size[1] * 2)).save(buf, format = "JPEG")
                 buf.flush()
                 content = buf.getvalue()
-                
                 if self.clear_output:  # used when updating lines printed
                     self.send_response(self.iopub_socket,
                                         'clear_output', {"wait": True})
@@ -296,7 +307,9 @@ class RPycKernel(IPythonKernel):
                     'metadata': {}
                 })
             except ValueError as e:
-              self.log.debug(e)
+                self.log.error(e)
+            except Exception as e:
+                self.log.error(e)
 
     def kill_task(self):
         master = rpyc.classic.connect(self.address)
@@ -346,34 +359,46 @@ class RPycKernel(IPythonKernel):
         if self.check_connect():
             try:
                 try:
+                    print("[ rpyc-kernel ]( running at %s )" % (time.asctime()))
+                    # self.log.info(code)
                     # self.remote.modules.builtins.exec(code)
+
                     self.result = self.remote_exec(code)
                     # self.result.wait()
                     def get_result(result):
                         if result.error:
                             pass # is error
-                            print(result.value)
+                            self.log.info(result.value)
                         # print('get_result', result, result.value, result.error)
                     self.result.add_callback(get_result)
+                    # self.log.info('self.result.ready (%s)' % repr(self.result.ready))
                     while self.result.ready == False:
-                        time.sleep(0.1) # print(end='')
+                        # self.log.info('self.result.ready (%s)' % repr(self.result.ready))
+                        time.sleep(0.001) # print(end='')
+
                     # with rpyc.classic.redirected_stdio(self.remote):
-                    #     self.remote.execute(code)
+                    #     self.remote_exec(code)
+
                     # self.remote.execute(code)
+                    # self.log.info(self.result)
                 except KeyboardInterrupt as e:
                     # self.remote.execute("raise KeyboardInterrupt") # maybe raise main_thread Exception
                     interrupted = True
                     self.kill_task()
-                    print('\r\nTraceback (most recent call last):\r\n  File "<string>", line unknown, in <module>\r\nRemote.KeyboardInterrupt\r\n')
+                    self.log.error('\r\nTraceback (most recent call last):\r\n  File "<string>", line unknown, in <module>\r\nRemote.KeyboardInterrupt\r\n')
                     # raise e
             # remote stream has been closed(cant return info)
             except EOFError as e:
+                self.log.error(e)
                 # self.remote.close() # not close self
-                self.remote.modules.os._exit(233)  # should close remote
-                self.log.debug(e)
+                try:
+                    self.remote.modules.os._exit(233)  # should close remote
+                except Exception as e:
+                    pass
             except Exception as e:
                 self.log.error(e)
                 # raise e
+                pass
             finally:
                 self._stop_display()
 
