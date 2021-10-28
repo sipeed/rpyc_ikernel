@@ -203,24 +203,26 @@ class RPycKernel(IPythonKernel):
 
 
     def do_reconnect(self):
-        try:
-            self.remote = rpyc.classic.connect(self.address)
-            self.remote.modules.sys.stdin = sys.stdin
-            self.remote.modules.sys.stdout = sys.stdout
-            self.remote.modules.sys.stderr = sys.stderr
-            self.remote._config['sync_request_timeout'] = None
-            self.remote_exec = rpyc.async_(self.remote.modules.builtins.exec) # Independent namespace
-            # self.remote_exec = rpyc.async_(self.remote.execute) # Common namespace
+        for reply in range(1, 6):
             try:
-                self.remote.modules["maix.display"].remote = self
+                self.remote = rpyc.classic.connect(self.address)
+                self.remote.modules.sys.stdin = sys.stdin
+                self.remote.modules.sys.stdout = sys.stdout
+                self.remote.modules.sys.stderr = sys.stderr
+                self.remote._config['sync_request_timeout'] = None
+                self.remote_exec = rpyc.async_(self.remote.modules.builtins.exec) # Independent namespace
+                # self.remote_exec = rpyc.async_(self.remote.execute) # Common namespace
+                try:
+                    self.remote.modules["maix.display"].remote = self
+                except Exception as e:
+                    pass
+                return True
+            # ConnectionRefusedError: [Errno 111] Connection refused
             except Exception as e:
-                pass
-            return True
-        # ConnectionRefusedError: [Errno 111] Connection refused
-        except Exception as e:
-            self.remote = None
-            self.log.debug('%s on Remote IP: %s' % (repr(e), self.address))
-            print("[ rpyc-kernel ]( Try ▶ again )")
+                self.remote = None
+                self.log.debug('%s on Remote IP: %s' % (repr(e), self.address))
+                print("[ rpyc-kernel ]( Waiting Connect... ( %d ) )" % reply)
+            time.sleep(1)
         return False
 
     def check_connect(self):
@@ -389,7 +391,7 @@ class RPycKernel(IPythonKernel):
                     # raise e
             # remote stream has been closed(cant return info)
             except EOFError as e:
-                self.log.error(e)
+                self.log.info(e)
                 # self.remote.close() # not close self
                 try:
                     self.remote.modules.os._exit(233)  # should close remote
