@@ -41,7 +41,7 @@ def config_maixpy3():
     def tmp():
         while True:
           bind_rpycs()
-          time.sleep(3)
+          time.sleep(1)
     t = Thread(target=tmp,args=())
     t.setDaemon(True)
     t.start()
