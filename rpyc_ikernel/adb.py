@@ -42,7 +42,7 @@ class ADB():
 
         if self.devices == None:
           self.init_devices()
-          
+
         if self.devices:
             # default use the 1st device [adb -s serial_number]
             self.set_target_device(self.devices[0][0])
@@ -512,13 +512,14 @@ def bind_rpycs():
         # print(adb.get_output().decode())
         # adb.run_shell_cmd('killall tcpsvd')
         # print(adb.get_output().decode())
+        adb.run_shell_cmd("ps | grep python | awk '{print $1}' | xargs kill -9")
         adb.run_shell_cmd('/etc/init.d/S51dropbear stop')
         # print(adb.get_output().decode())
         adb.run_shell_cmd('/etc/init.d/S52ntpd stop')
         # print(adb.get_output().decode())
         adb.forward_socket('tcp:18811', 'tcp:18811')
         adb.forward_socket('tcp:18812', 'tcp:18812')
-        adb.run_shell_cmd('maixpy3_rpycs')
+        adb.run_shell_cmd('python -c "import maix.mjpg;maix.mjpg.start()"')
         # print(adb.get_output().decode())
         # import sys
         # sys.exit(666)
