@@ -6,8 +6,6 @@
 [![MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 [![PyPI version](https://badge.fury.io/py/rpyc-ikernel.svg)](https://badge.fury.io/py/rpyc-ikernel)
 
-English | [简体中文](./README.CN.md)
-
 ## Kernel introduction
 
 Inherit the IPythonKernel (iPython) class, and support low-end hardware (armv7l) for Python programming and real-time image and video streaming with less occupation (16~32M).
@@ -37,12 +35,25 @@ Use **ifconfig** or **ipconfig** on your remote device to get your IP address, p
 Make sure that the remote device is configured in the **Python3** environment, enter `pip3 install maixpy3` to install the **rpyc** service, copy the following command and run it to start the service.
 
 ```shell
-maixpy3_rpycs &
+python -c "import maix.mjpg;maix.mjpg.start()"
 ```
 
-At this time your rpyc service has been up, please remember your IP address.
+The following code provides the remote call environment.
 
-> Tip: You can also install the service on your local machine, and use the IP address of localhost as a remote machine to connect.
+```python
+try:
+  from rpyc.utils.server import ThreadedServer
+  from rpyc.core.service import SlaveService
+  rpyc_server = ThreadedServer(
+      SlaveService, hostname=HostName, port=RpycPort, reuse_addr=True)
+  rpyc_server.start()
+except OSError as e:
+  # logging.debug('[%s] OSError: %s' % (__file__, str(e))) # [Errno 98] Address already in use
+  exit(0)
+```
+
+At this time your rpyc service has been up.
+
 ## Install jupyter environment for [local Python].
 
 Take Python3 as an example, please make sure that the basic environment/commands of python3 and pip3 have been installed, just call the code under the command line.

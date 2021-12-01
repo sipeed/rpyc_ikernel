@@ -11,7 +11,7 @@ except ImportError:
 
 setup(
     name="rpyc_ikernel",
-    version="0.3.5",
+    version="0.3.6",
     description="rpyc for jupyter kernel",
     author="Juwan",
     author_email="juwan@sipeed.com",
@@ -20,7 +20,7 @@ setup(
     packages=["rpyc_ikernel"],
     # scripts=scripts,
     # entry_points={"console_scripts": ["rpyc_ikernel = rpyc_ikernel.__main__:main"]},
-    install_requires=["notebook", "pexpect", "rpyc", "pillow"],
+    install_requires=["notebook", "pexpect", "rpyc", "pillow", "requests"],
     tests_requires=["pytest", "scripttest"],
     classifiers=[
         "Programming Language :: Python :: 3",

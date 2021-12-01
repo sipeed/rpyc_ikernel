@@ -11,16 +11,17 @@ job schedulers.
 import imghdr
 import base64
 import os
-import io
-import argparse
 import logging
 import time
 import traceback
-from PIL.Image import NONE
-import rpyc
-import sys
-import signal
+import urllib.request
+import io
 import re
+import _thread
+
+from PIL import Image
+import requests
+import rpyc
 
 try:
     from pexpect import spawn as pexpect_spawn
@@ -33,7 +34,7 @@ except ImportError:
 
 from .scheduler import Scheduler
 
-from .adb import bind_rpycs
+from .adb import bind_rpycs, adb
 
 def config_maixpy3():
     from threading import Thread
@@ -49,7 +50,149 @@ def config_maixpy3():
 # from ipykernel.kernelbase import Kernel
 from ipykernel.ipkernel import IPythonKernel
 
-# Blend in with the notebook logging
+########################################################################################################################################
+
+class ProtoError(Exception):
+    pass
+
+class MjpgSocket():
+
+    def read_header_line(self, stream):
+        '''Read one header line within the stream.
+        The headers come right after the boundary marker and usually contain
+        headers like Content-Type and Content-Length which determine the type and
+        length of the data portion.
+        '''
+        return stream.readline().decode('utf-8').strip()
+
+
+    def read_headers(self, stream, boundary):
+        '''Read and return stream headers.
+        Each stream data packet starts with an empty line, followed by a boundary
+        marker, followed by zero or more headers, followed by an empty line,
+        followed by actual data. This function reads and parses the entire header
+        section. It returns a dictionary with all the headers. Header names are
+        converted to lower case. Each value in the dictionary is a list of header
+        fields values.
+        '''
+        l = self.read_header_line(stream)
+        if l == '':
+            l = self.read_header_line(stream)
+        # print("read_headers", l, boundary)
+        if l != boundary:
+            raise ProtoError('Boundary string expected, but not found')
+
+        headers = {}
+        while True:
+            l = self.read_header_line(stream)
+            # An empty line indicates the end of the header section
+            if l == '':
+                break
+
+            # Parse the header into lower case header name and header body
+            i = l.find(':')
+            if i == -1:
+                raise ProtoError('Invalid header line: ' + l)
+            name = l[:i].lower()
+            body = l[i+1:].strip()
+
+            lst = headers.get(name, list())
+            lst.append(body)
+            headers[name] = lst
+
+        return headers
+
+
+    def skip_data(self, stream, left):
+        while left:
+            rv = stream.read(left)
+            if len(rv) == 0 and left:
+                raise ProtoError('Not enough data in chunk')
+            left -= len(rv)
+
+
+    def read_data(self, buf, stream, length):
+        v = memoryview(buf)[:length]
+        while len(v):
+            n = stream.readinto(v)
+            if n == 0 and len(v):
+                raise ProtoError('Not enough data in chunk')
+            v = v[n:]
+        return buf
+
+
+    def parse_content_length(self, headers):
+        # Parse and check Content-Length. The header must be present in
+        # each chunk, otherwise we wouldn't know how much data to read.
+        clen = headers.get('content-length', None)
+        try:
+            return int(clen[0])
+        except (ValueError, TypeError):
+            raise ProtoError('Invalid or missing Content-Length')
+
+
+    def check_content_type(self, headers, type_):
+        ctype = headers.get('content-type', None)
+        if ctype is None:
+            raise ProtoError('Missing Content-Type header')
+        ctype = ctype[0]
+
+        i = ctype.find(';')
+        if i != -1:
+            ctype = ctype[:i]
+
+        if ctype != type_:
+            raise ProtoError('Wrong Content-Type: %s' % ctype)
+
+        return True
+
+
+    def open_mjpeg_stream(self, stream):
+        if stream.status != 200:
+            raise ProtoError('Invalid response from server: %d' % stream.status)
+        h = stream.info()
+
+        boundary = h.get_param('boundary', header='content-type', unquote=True)
+        if boundary is None:
+            raise ProtoError('Content-Type header does not provide boundary string')
+        # boundary = '--' + boundary
+
+        return boundary
+
+
+    def read_mjpeg_frame(self, stream, boundary):
+        hdr = self.read_headers(stream, boundary)
+        clen = self.parse_content_length(hdr)
+        if clen == 0:
+            raise EOFError('End of stream reached')
+        self.check_content_type(hdr, 'image/jpeg')
+        buf = bytearray(clen)
+        self.read_data(buf, stream, clen)
+        return buf
+
+    def unit_test(self):
+        try:
+            url = "http://127.0.0.1:18811"
+            with urllib.request.urlopen(url, timeout = 1) as stream:
+                boundary = self.open_mjpeg_stream(stream)
+                while True:
+                    tmp = self.read_mjpeg_frame(stream, boundary)
+                    print(len(tmp), tmp)
+        except EOFError:
+            pass
+        except Exception as e:
+            traceback.print_exc()
+
+    def __init__(self, url: str):
+        self._url = url
+        self.stream = urllib.request.urlopen(url, timeout = 1)
+        self.boundary = self.open_mjpeg_stream(self.stream)
+
+    def iter_content(self):
+        while True:
+            yield self.read_mjpeg_frame(self.stream, self.boundary)
+
+
 class MjpgReader():
     """
     MJPEG format
@@ -70,34 +213,30 @@ class MjpgReader():
     """
 
     def __init__(self, url: str):
-        import io
-        import requests
         self._url = url
-        self.r = None
-        self.r = requests.get(self._url, stream=True)
-
-        # parse boundary
-        content_type = self.r.headers['content-type']
-        index = content_type.rfind("boundary=")
-        # assert index != 1
-        boundary = content_type[index+len("boundary="):] + "\r\n"
-        self.boundary = boundary.encode('utf-8')
-
-        self.rd = io.BufferedReader(self.r.raw)
-
-    def __del__(self):
-        if self.r:
-            self.r.close()
-            self.r = None
+        self.session = requests.Session()
 
     def iter_content(self):
         """
         Raises:
             RuntimeError
         """
-        self._skip_to_boundary(self.rd, self.boundary)
-        length = self._parse_length(self.rd)
-        yield self.rd.read(length)
+
+        r = self.session.get(self._url, stream=True, timeout=3)
+        # r = requests.get(self._url, stream=True, timeout=3)
+
+        # parse boundary
+        content_type = r.headers['content-type']
+        index = content_type.rfind("boundary=")
+        assert index != 1
+        boundary = content_type[index+len("boundary="):] + "\r\n"
+        boundary = boundary.encode('utf-8')
+
+        rd = io.BufferedReader(r.raw)
+        while True:
+            self._skip_to_boundary(rd, boundary)
+            length = self._parse_length(rd)
+            yield rd.read(length)
 
     def _parse_length(self, rd) -> int:
         length = 0
@@ -116,11 +255,13 @@ class MjpgReader():
         else:
             raise RuntimeError("Boundary not detected:", boundary)
 
+########################################################################################################################################
+
 def _setup_logging(verbose=logging.INFO):
 
     log = logging.getLogger("rpyc_ikernel")
     log.setLevel(verbose)
-    # Logging on stderr
+
     console = logging.StreamHandler()
     formatter = logging.Formatter('%(asctime)s - %(filename)s[line:%(lineno)d] - %(levelname)s: %(message)s')
     console.setFormatter(formatter)
@@ -189,9 +330,8 @@ class RPycKernel(IPythonKernel):
         self.log = _setup_logging()
         self.remote = None
         self.address = "localhost"
-        self._media_client = None
         self.clear_output = True
-        self._media_timer = None
+        self.last_result = ""
         # for do_handle
         self.pattern = re.compile("[$](.*?)[(](.*)[)]")
         self.commands = {
@@ -199,12 +339,15 @@ class RPycKernel(IPythonKernel):
             'connect': 'self.connect_remote(%s)',
         }
         config_maixpy3()
-        self.do_reconnect()
+        # self.do_reconnect()
+        # bind_rpycs()
 
 
     def do_reconnect(self):
-        for reply in range(1, 6):
+        for i in range(6):
+            time.sleep(1)
             try:
+                import sys
                 self.remote = rpyc.classic.connect(self.address)
                 self.remote.modules.sys.stdin = sys.stdin
                 self.remote.modules.sys.stdout = sys.stdout
@@ -212,18 +355,20 @@ class RPycKernel(IPythonKernel):
                 self.remote._config['sync_request_timeout'] = None
                 self.remote_exec = rpyc.async_(self.remote.modules.builtins.exec) # Independent namespace
                 # self.remote_exec = rpyc.async_(self.remote.execute) # Common namespace
-                try:
-                    self.remote.modules["maix.display"].remote = self
-                except Exception as e:
-                    pass
                 return True
             # ConnectionRefusedError: [Errno 111] Connection refused
             except Exception as e:
                 self.remote = None
-                self.log.debug('%s on Remote IP: %s' % (repr(e), self.address))
-                print("[ rpyc-kernel ]( Waiting Connect... ( %d ) )" % reply)
-            time.sleep(1)
-        return False
+                # self.log.debug('%s on Remote IP: %s' % (repr(e), self.address))
+                print("[ rpyc-kernel ]( Connect IP: %s ...)" % (self.address))
+        print("[ rpyc-kernel ]( Connect IP: %s fail! )" % (self.address))
+        try:
+            if(adb.connect_check()):
+                adb.kill_server() # maybe other usage
+        except Exception as e:
+            self.log.info("[ rpyc-kernel ]( adb %s )" % (str(e)))
+        import sys
+        sys.exit()
 
     def check_connect(self):
         if self.remote:
@@ -244,91 +389,83 @@ class RPycKernel(IPythonKernel):
         self.address = address
         self.do_reconnect()
 
-    def _stop_display(self):
+    def _ready_display(self, port=18811):
+        self._media_client, self._media_port = None, port
+        self._clear_display(self.remote)
+        _thread.start_new_thread(self._update_display, ())
+
+    def _clear_display(self, remote):
+        try:
+            remote.modules['maix.mjpg'].clear_mjpg()
+        except Exception as e:
+            self.log.debug(e)
+
+    def _update_display(self):
         # return
         try:
-            self.log.debug("_stop_display %s" % self._media_client)
-            if self._media_timer:
-                self._media_timer.cancel()
-                self._media_timer = None
-            if self._media_client:
-                self._media_client = None
+            while True:
+                if self._media_client == None:
+                    self._media_client = MjpgSocket("http://%s:%d" % (self.address, self._media_port))
+                    self.log.debug('[%s] connect... (%s)' % (self._media_client, os.getpid()))
+                if self._media_client != None:
+                    # for content in self._media_client.iter_content():
+                    # self.log.info('iter_content... (%s)' % len(content))
+                    content = next(self._media_client.iter_content())
+                    tmp = Image.open(io.BytesIO(content))
+                    buf = io.BytesIO()
+                    tmp.resize((tmp.size[0] * 2, tmp.size[1] * 2)).save(buf, format = "JPEG")
+                    buf.flush()
+                    content = buf.getvalue()
+                    if self.clear_output:  # used when updating lines printed
+                        self.send_response(self.iopub_socket,
+                                            'clear_output', {"wait": True})
+                    # self.log.debug(content)
+                    image_type = imghdr.what(None, content)
+                    # self.log.debug(image_type)
+                    image_data = base64.b64encode(content).decode('ascii')
+                    # self.log.debug(image_data)
+                    self.send_response(self.iopub_socket, 'display_data', {
+                        'data': {
+                            'image/' + image_type: image_data
+                        },
+                        'metadata': {}
+                    })
+                    self.log.debug('[%s] display... (%s)' % (self._media_client, len(image_data)))
+                # time.sleep(0.02)
+                time.sleep(0.01)
+        # except socket.timeout as e:
+        #     pass
+        # except OSError as e:
+        #     pass
         except Exception as e:
-            self.log.error(e)
-
-    def _start_display(self):
-        # return
-        try:
-            self.log.debug("_start_display %s" % self._media_client)
-            if self._media_timer == None:
-                def _update(self):
-                    self._update_display()
-                self._media_timer = Scheduler('recur', 0.001, _update, args=(self,))
-                self._media_timer.start()
-                self._media_display = True
-            if self._media_client:
+            self.log.debug(e)
+            # import traceback
+            # traceback.print_exc()
+            if (self._media_client):
+                self._media_client.stream.close()
                 self._media_client = None
-        except Exception as e:
-            self.log.error(e)
-
-    def _update_display(self, host_port=18811):
-        # return
-        # from requests import exceptions
-        self.log.debug('_update_display... (%s)' % self._media_client)
-        if self._media_client == None:
-            # self.log.debug('connect... (%s)' % self._media_client)
-            # for i in range(3):
-            try:
-                self._media_client = MjpgReader("http://%s:%d" % (self.address, host_port))
-            except Exception as e:
-                self.log.error(e)
-        if self._media_client != None:
-            try:
-                # self.log.debug('update... (%s)' % self._media_client)
-                content = next(self._media_client.iter_content())
-                # print(len(content))
-                from PIL import Image
-                from io import BytesIO
-                tmp = Image.open(BytesIO(content))
-                buf = BytesIO()
-                tmp.resize((tmp.size[0] * 2, tmp.size[1] * 2)).save(buf, format = "JPEG")
-                buf.flush()
-                content = buf.getvalue()
-                if self.clear_output:  # used when updating lines printed
-                    self.send_response(self.iopub_socket,
-                                        'clear_output', {"wait": True})
-                # self.log.debug(image.getvalue())
-                image_type = imghdr.what(None, content)
-                # self.log.debug(image_type)
-                image_data = base64.b64encode(content).decode('ascii')
-                # self.log.debug(image_data)
-                self.send_response(self.iopub_socket, 'display_data', {
-                    'data': {
-                        'image/' + image_type: image_data
-                    },
-                    'metadata': {}
-                })
-            except ValueError as e:
-                self.log.error(e)
-            except Exception as e:
-                self.log.error(e)
 
     def kill_task(self):
-        master = rpyc.classic.connect(self.address)
-        thread = master.modules.threading
-        # print(thread.enumerate()) # kill remote's thread
-        lists = [i for i in thread.enumerate() if i.__class__.__name__ not in [
-            'MjpgServerThread', '_MainThread']]
-        kills = [i.ident for i in lists if i.ident not in [
-            thread.main_thread().ident, thread.get_ident()]]
-        # print(kills)
-        for id in kills:
-            try:
-                master.teleport(_async_raise)(id)
-            except Exception as e:
-                self.log.debug('teleport Exception (%s)' % repr(e))
-        # print(master.modules.threading.enumerate())
-        master.close()
+        try:
+            master = rpyc.classic.connect(self.address)
+            thread = master.modules.threading
+            # print(thread.enumerate()) # kill remote's thread
+            lists = [i for i in thread.enumerate() if i.__class__.__name__ not in [
+                'MjpgServerThread', '_MainThread']]
+            kills = [i.ident for i in lists if i.ident not in [
+                thread.main_thread().ident, thread.get_ident()]]
+            # print(kills)
+            for id in kills:
+                try:
+                    master.teleport(_async_raise)(id)
+                except Exception as e:
+                    self.log.debug('teleport Exception (%s)' % repr(e))
+            # print(master.modules.threading.enumerate())
+            # master.modules['traceback'].print_exc()
+            self._clear_display(master)
+            master.close()
+        except Exception as e:
+            self.log.debug(e)
 
     def do_handle(self, code):
         # self.log.debug(code)
@@ -357,12 +494,13 @@ class RPycKernel(IPythonKernel):
         code = self.do_handle(code)
 
         interrupted = False
-
+        self.last_result = ""
         if self.check_connect():
             try:
                 try:
                     print("[ rpyc-kernel ]( running at %s )" % (time.asctime()))
-                    # self.log.info(code)
+                    self._ready_display()
+
                     # self.remote.modules.builtins.exec(code)
 
                     self.result = self.remote_exec(code)
@@ -370,14 +508,14 @@ class RPycKernel(IPythonKernel):
                     def get_result(result):
                         if result.error:
                             pass # is error
-                            self.log.info(result.value)
+                            self.log.debug(result.value)
                         # print('get_result', result, result.value, result.error)
                     self.result.add_callback(get_result)
                     # self.log.info('self.result.ready (%s)' % repr(self.result.ready))
                     while self.result.ready == False:
                         # self.log.info('self.result.ready (%s)' % repr(self.result.ready))
                         time.sleep(0.001) # print(end='')
-
+                    time.sleep(0.2)
                     # with rpyc.classic.redirected_stdio(self.remote):
                     #     self.remote_exec(code)
 
@@ -386,23 +524,44 @@ class RPycKernel(IPythonKernel):
                 except KeyboardInterrupt as e:
                     # self.remote.execute("raise KeyboardInterrupt") # maybe raise main_thread Exception
                     interrupted = True
-                    self.kill_task()
-                    self.log.error('\r\nTraceback (most recent call last):\r\n  File "<string>", line unknown, in <module>\r\nRemote.KeyboardInterrupt\r\n')
+                    # self.kill_task()
+                    self.last_result = '\r\nTraceback (most recent call last):\r\n  File "<string>", line unknown, in <module>\r\nRemote.KeyboardInterrupt\r\n'
+                    self.log.debug(self.last_result)
                     # raise e
             # remote stream has been closed(cant return info)
             except EOFError as e:
-                self.log.info(e)
+                self.log.debug(e)
                 # self.remote.close() # not close self
                 try:
                     self.remote.modules.os._exit(233)  # should close remote
                 except Exception as e:
                     pass
             except Exception as e:
-                self.log.error(e)
+                import traceback, sys
+                # traceback.print_exc()
+                exc_type, exc_value, exc_traceback = sys.exc_info()
+                for s in traceback.format_exception(exc_type, exc_value, exc_traceback):
+                    if "Remote Traceback" in s:
+                        self.last_result = ""
+                    self.last_result += s
+                # self.log.error(e)
                 # raise e
                 pass
             finally:
-                self._stop_display()
+                self.kill_task()
+
+        if len(self.last_result) > 0:
+            self.send_response(self.iopub_socket, 'execute_result', {
+                'execution_count': self.execution_count,
+                'status': 'ok',
+                'payload': [],
+                'user_expressions': {},
+                'data': {
+                    # 'text/' + image_type: image_data
+                    "text/plain" : str(self.last_result)
+                },
+                'metadata': {},
+            })
 
         if interrupted:
             return {'status': 'abort', 'execution_count': self.execution_count}

@@ -249,7 +249,7 @@ class ADB():
         '''
         self.run_cmd(['devices', '-l'])
         lines = re.split(r'\n', self.__output.decode(encoding='utf-8'))
-        print('init_devices', self.__output.decode(encoding='utf-8'))
+        # print('init_devices', self.__output.decode(encoding='utf-8'))
         for line in lines[1:]: # [1:-1]:
             dev = line.split()
             if len(dev):
@@ -501,29 +501,61 @@ class ADB():
 
         return self.__output
 
+adb = ADB()
+
 def bind_rpycs():
-    adb = ADB()
+    # return
+    global adb
     # for item in adb.devices:
     #     print(item)
     # if adb.check_root():
     #     print("I'm root.")
     if(adb.connect_check()):
+        import time
+        for i in range(3):
+            adb.run_shell_cmd("ps | grep 'from maix import mjpg;mjpg.start();' | awk '{print $1}'")
+            tmp = (adb.get_output().decode())
+            tmp = tmp.replace('\r', '')
+            res = tmp.split('\n')
+            # filter(None, res)
+            res = [x for x in res if x != '']
+            # print(i, len(res), res) # exist server
+            if (len(res) > 1):
+                return True
+
+        # ----
+        adb.run_shell_cmd('/etc/init.d/S52ntpd stop')
+        adb.run_shell_cmd("ps | grep python | awk '{print $1}' | xargs kill -9")
+        # ----
+        adb.forward_socket('tcp:18811', 'tcp:18811')
+        adb.forward_socket('tcp:18811', 'tcp:18811')
+        adb.forward_socket('tcp:18811', 'tcp:18811')
+        adb.forward_socket('tcp:18812', 'tcp:18812')
+        adb.forward_socket('tcp:18812', 'tcp:18812')
+        adb.forward_socket('tcp:18812', 'tcp:18812')
+        adb.run_shell_cmd("python -c 'from maix import mjpg;mjpg.start();'")
         # adb.run_shell_cmd('/etc/init.d/S40network stop')
         # print(adb.get_output().decode())
         # adb.run_shell_cmd('killall tcpsvd')
         # print(adb.get_output().decode())
-        adb.run_shell_cmd("ps | grep python | awk '{print $1}' | xargs kill -9")
-        adb.run_shell_cmd('/etc/init.d/S51dropbear stop')
-        # print(adb.get_output().decode())
-        adb.run_shell_cmd('/etc/init.d/S52ntpd stop')
-        # print(adb.get_output().decode())
-        adb.forward_socket('tcp:18811', 'tcp:18811')
-        adb.forward_socket('tcp:18812', 'tcp:18812')
-        adb.run_shell_cmd('python -c "import maix.mjpg;maix.mjpg.start()"')
-        # print(adb.get_output().decode())
-        # import sys
+        # adb.run_shell_cmd("ps | grep python | awk '{print $1}' | xargs kill -9")
+        # # adb.run_shell_cmd('/etc/init.d/S51dropbear stop')
+        # # print(adb.get_output().decode())
+        # adb.run_shell_cmd('/etc/init.d/S52ntpd stop')
+        # # print(adb.get_output().decode())
+        # adb.forward_socket('tcp:18811', 'tcp:18811')
+        # adb.forward_socket('tcp:18812', 'tcp:18812')
+        # adb.run_shell_cmd('python -c "import maix.mjpg;maix.mjpg.start()"')
+        # # print(adb.get_output().decode())
+        # # import sys
         # sys.exit(666)
     return False
 
 if __name__ == "__main__":
-    bind_rpycs()
+    # adb.run_shell_cmd('/etc/init.d/S52ntpd stop')
+    # adb.run_shell_cmd("ps | grep python | awk '{print $1}' | xargs kill -9")
+    # # ----
+    adb.forward_socket('tcp:18811', 'tcp:18811')
+    adb.forward_socket('tcp:18812', 'tcp:18812')
+    # while True:
+    #     print('bind_rpycs()', bind_rpycs())
