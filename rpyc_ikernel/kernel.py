@@ -338,7 +338,7 @@ class RPycKernel(IPythonKernel):
             'exec': '%s',
             'connect': 'self.connect_remote(%s)',
         }
-        # config_maixpy3()
+        config_maixpy3()
         # self.do_reconnect()
         # bind_rpycs()
 
