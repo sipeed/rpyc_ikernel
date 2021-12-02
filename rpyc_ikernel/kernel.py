@@ -338,7 +338,7 @@ class RPycKernel(IPythonKernel):
             'exec': '%s',
             'connect': 'self.connect_remote(%s)',
         }
-        config_maixpy3()
+        # config_maixpy3()
         # self.do_reconnect()
         # bind_rpycs()
 
@@ -390,20 +390,23 @@ class RPycKernel(IPythonKernel):
         self.do_reconnect()
 
     def _ready_display(self, port=18811):
-        self._media_client, self._media_port = None, port
+        self._media_client, self._media_port, self._media_work = None, port, True
         self._clear_display(self.remote)
+        self._media_work = True
         _thread.start_new_thread(self._update_display, ())
 
     def _clear_display(self, remote):
         try:
+            self._media_work = False
             remote.modules['maix.mjpg'].clear_mjpg()
         except Exception as e:
             self.log.debug(e)
 
     def _update_display(self):
         # return
-        try:
-            while True:
+        while self._media_work:
+            try:
+                # self.log.info('[%s] _update_display_ ' % (self._media_client))
                 if self._media_client == None:
                     self._media_client = MjpgSocket("http://%s:%d" % (self.address, self._media_port))
                     self.log.debug('[%s] connect... (%s)' % (self._media_client, os.getpid()))
@@ -433,17 +436,18 @@ class RPycKernel(IPythonKernel):
                     self.log.debug('[%s] display... (%s)' % (self._media_client, len(image_data)))
                 # time.sleep(0.02)
                 time.sleep(0.01)
-        # except socket.timeout as e:
-        #     pass
-        # except OSError as e:
-        #     pass
-        except Exception as e:
-            self.log.debug(e)
-            # import traceback
-            # traceback.print_exc()
-            if (self._media_client):
-                self._media_client.stream.close()
-                self._media_client = None
+            # except socket.timeout as e:
+            #     pass
+            # except OSError as e:
+            #     pass
+            # except ConnectionResetError as e:
+            except Exception as e:
+                self.log.debug(e)
+                # import traceback
+                # traceback.print_exc()
+                if (self._media_client):
+                    # self._media_client.stream.close()
+                    self._media_client = None
 
     def kill_task(self):
         try:
