@@ -20,8 +20,7 @@ Inherit the IPythonKernel (iPython) class, and support low-end hardware (armv7l)
 
 | Command format | Command function | How to use |
 | ---- | ---- | ---- |
-| $connect("localhost") | Connect to the remote IP address (for example: "192.168.44.171:18812") | [usage_display.ipynb](./examples/usage_display.ipynb) |
-| $exec("code") | The (code) code will be executed in the local environment (local). | [usage_exec.ipynb](./examples/usage_exec.ipynb) |
+| $connect("localhost") | Connect to the remote IP address (for example: "192.168.44.171:18812") | [usage_connect.ipynb](./tests/usage_connect.ipynb) |
 
 ## installation method
 
