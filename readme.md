@@ -10,7 +10,7 @@
 
 ## Kernel introduction
 
-Inherit the IPythonKernel (iPython) class, and support low-end hardware (armv7l) for Python programming and real-time image and video streaming with less occupation (16~32M).
+Inherit the IPythonKernel (iPython) class, and support low-end hardware (armv7l) for Python programming and real-time image and video streaming with less occupation 16M.
 
 - Implement remote call (RPC) core through [rpyc](https://github.com/tomerfiliba-org/rpyc).
 
