@@ -1,6 +1,6 @@
 
 <p align="center">
-    <h1 align="center">💮 RPyC の IPykernel 🐹</h1>
+    <h1 align="center"> RPyC の IPykernel </h1>
 </p>
 
 [![MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
