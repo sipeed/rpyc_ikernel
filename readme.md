@@ -14,7 +14,7 @@ Inherit the IPythonKernel (iPython) class, and support low-end hardware (armv7l)
 
 - Implement remote call (RPC) core through [rpyc](https://github.com/tomerfiliba-org/rpyc).
 
-- Establish an RPC service for the remote machine through [MaixPy3](https://github.com/sipeed/MaixPy3), and pass the local code to the remote (remote) to run.
+- Establish an RPC service for the remote machine through [MaixPy3](https://github.com/sipeed/MaixPy3), and pass the local code to the remote (remote) to run & show image & get result.
 
 ### Special functions
 
