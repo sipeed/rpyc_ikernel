@@ -18,6 +18,7 @@ import urllib.request
 import io
 import re
 import _thread
+import socket
 
 from PIL import Image # , UnidentifiedImageError
 import requests
@@ -32,7 +33,7 @@ except ImportError:
         def isalive(self):
             return self.proc.poll() is None
 
-from .scheduler import Scheduler
+# from .scheduler import Scheduler
 
 from .adb import bind_rpycs, adb
 
@@ -396,10 +397,11 @@ class RPycKernel(IPythonKernel):
         _thread.start_new_thread(self._update_display, ())
 
     def _clear_display(self, remote):
-        self.log.debug('[%s] _clear_display %s %s' % (remote, self._media_work, self._media_client))
+        self.log.debug('[%s] _clear_display %s %s' % (self.remote, self._media_work, self._media_client))
         try:
-            if self._media_work == True or self._media_client != None:
-                time.sleep(1) # many while True maybe ouput last result
+            # if self._media_work == True or self._media_client != None:
+            #     self.log.info('[%s] _media_work %s _media_client %s' % (self.remote, self._media_work, self._media_client))
+            #     time.sleep(1) # many while True maybe ouput last result
             self._media_work = False
             remote.modules['maix.mjpg'].clear_mjpg()
         except Exception as e:
@@ -411,12 +413,15 @@ class RPycKernel(IPythonKernel):
             try:
                 self.log.debug('[%s] _update_display_ ' % (self._media_client))
                 if self._media_client == None:
-                    self._media_client = MjpgSocket("http://%s:%d" % (self.address, self._media_port))
-                    self.log.debug('[%s] connect... (%s)' % (self._media_client, os.getpid()))
+                    try:
+                        self._media_client = MjpgSocket("http://%s:%d" % (self.address, self._media_port))
+                        self.log.debug('[%s] connect... (%s)' % (self._media_client, os.getpid()))
+                    except socket.timeout as e:
+                        self.log.debug(e)
+                        break
                 if self._media_client != None:
-                    # try:
                     # for content in self._media_client.iter_content():
-                    # self.log.info('iter_content... (%s)' % len(content))
+                    #     self.log.info('iter_content... (%s)' % len(content))
                     content = next(self._media_client.iter_content())
                     tmp = Image.open(io.BytesIO(content))
                     buf = io.BytesIO()
@@ -437,16 +442,16 @@ class RPycKernel(IPythonKernel):
                         },
                         'metadata': {}
                     })
-                    self.log.debug('[%s] display... (%s)' % (self._media_client, len(image_data)))
                     # except UnicodeDecodeError as e:
                     #     self.log.info('[%s] UnicodeDecodeError ' % (self._media_client))
-                    #     pass
+                    #     # self._media_client.stream.close()
+                    #     # self._media_client = None
                     # except UnidentifiedImageError as e:
                     #     self.log.info('[%s] UnidentifiedImageError ' % (self._media_client))
-                # time.sleep(0.02)
+                    #     # self._media_client.stream.close()
+                    #     # self._media_client = None
+                    # time.sleep(0.02)
                 time.sleep(0.01)
-            # except socket.timeout as e:
-            #     pass
             # except OSError as e:
             #     pass
             # except ConnectionResetError as e:
@@ -454,9 +459,12 @@ class RPycKernel(IPythonKernel):
                 self.log.debug(e)
                 # import traceback
                 # traceback.print_exc()
-                if (self._media_client):
-                    # self._media_client.stream.close()
-                    self._media_client = None
+        if (self._media_client):
+            try:
+                self._media_client.stream.close()
+            except Exception as e:
+                self.log.debug('[%s] Exception ' % (e))
+            self._media_client = None
 
     def kill_task(self):
         try:
@@ -528,7 +536,7 @@ class RPycKernel(IPythonKernel):
                     while self.result.ready == False:
                         # self.log.info('self.result.ready (%s)' % repr(self.result.ready))
                         time.sleep(0.001) # print(end='')
-                    time.sleep(1)
+                    time.sleep(0.2)
                     # with rpyc.classic.redirected_stdio(self.remote):
                     #     self.remote_exec(code)
 
