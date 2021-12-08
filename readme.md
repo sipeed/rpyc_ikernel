@@ -12,9 +12,9 @@
 
 Inherit the IPythonKernel (iPython) class, and support low-end hardware (armv7l) for Python programming and real-time image and video streaming with less occupation 16M.
 
-- Implement remote call (RPC) core through [rpyc](https://github.com/tomerfiliba-org/rpyc).
+- Implement remote call (RPC) core through [rpyc](https://github.com/tomerfiliba-org/rpyc), see this [docs](http://rpyc.readthedocs.org/).
 
-- Establish an RPC service for the remote machine through [MaixPy3](https://github.com/sipeed/MaixPy3), and pass the local code to the remote (remote) to run & show image & get result.
+- Set up an RPC service for the remote machine with [MaixPy3](https://github.com/sipeed/MaixPy3) and transfer the local code to the remote (remote) to run & display images & get results.
 
 ### Special functions
 
@@ -33,11 +33,15 @@ Explain in the following order:
 
 Use **ifconfig** or **ipconfig** on your remote device to get your IP address, please make sure that the address can be **ping**.
 
+### MaixPy3 series
+
 Make sure that the remote device is configured in the **Python3** environment, enter `pip3 install maixpy3` to install the **rpyc** service, copy the following command and run it to start the service.
 
 ```shell
 python -c "import maix.mjpg;maix.mjpg.start()"
 ```
+
+### Other environmental
 
 The following code provides the remote call environment.
 
@@ -74,6 +78,8 @@ After the above package is installed, enter `jupyter notebook` to start the serv
 ![kernels.png](./images/kernels.png)
 
 If you don't see it, you can enter `python3 -m rpyc_ikernel.install` to complete the kernel installation, and you can see it now.
+
+### On Windows
 
 If there are the following common errors that cannot find modules, they are common in py2 and py3 environments. Please confirm whether the system environment variable is python / pip command.
 
@@ -138,6 +144,7 @@ Unplug the network cable or restart the machine, reset the hardware and other re
 
 The kernel design is taken from the following Python repository.
 
+- [maixpy3](https://github.com/sipeed/maixpy3)
 - [ipykernel](https://github.com/ipython/ipykernel)
 - [rpyc](https://github.com/tomerfiliba-org/rpyc)
 

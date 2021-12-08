@@ -11,8 +11,10 @@ except ImportError:
 
 setup(
     name="rpyc_ikernel",
-    version="0.3.6",
+    version="0.3.8",
     description="rpyc for jupyter kernel",
+    long_description=open('readme.md', 'r', encoding='UTF-8').read(),
+    long_description_content_type='text/markdown',
     author="Juwan",
     author_email="juwan@sipeed.com",
     license="BSD",
@@ -22,6 +24,7 @@ setup(
     # entry_points={"console_scripts": ["rpyc_ikernel = rpyc_ikernel.__main__:main"]},
     install_requires=["notebook", "pexpect", "rpyc", "pillow", "requests"],
     tests_requires=["pytest", "scripttest"],
+    include_package_data=True,
     classifiers=[
         "Programming Language :: Python :: 3",
         "Framework :: IPython",
