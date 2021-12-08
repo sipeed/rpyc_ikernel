@@ -19,7 +19,7 @@ import io
 import re
 import _thread
 
-from PIL import Image
+from PIL import Image # , UnidentifiedImageError
 import requests
 import rpyc
 
@@ -396,7 +396,10 @@ class RPycKernel(IPythonKernel):
         _thread.start_new_thread(self._update_display, ())
 
     def _clear_display(self, remote):
+        self.log.debug('[%s] _clear_display %s %s' % (remote, self._media_work, self._media_client))
         try:
+            if self._media_work == True or self._media_client != None:
+                time.sleep(1) # many while True maybe ouput last result
             self._media_work = False
             remote.modules['maix.mjpg'].clear_mjpg()
         except Exception as e:
@@ -406,11 +409,12 @@ class RPycKernel(IPythonKernel):
         # return
         while self._media_work:
             try:
-                # self.log.info('[%s] _update_display_ ' % (self._media_client))
+                self.log.debug('[%s] _update_display_ ' % (self._media_client))
                 if self._media_client == None:
                     self._media_client = MjpgSocket("http://%s:%d" % (self.address, self._media_port))
                     self.log.debug('[%s] connect... (%s)' % (self._media_client, os.getpid()))
                 if self._media_client != None:
+                    # try:
                     # for content in self._media_client.iter_content():
                     # self.log.info('iter_content... (%s)' % len(content))
                     content = next(self._media_client.iter_content())
@@ -434,6 +438,11 @@ class RPycKernel(IPythonKernel):
                         'metadata': {}
                     })
                     self.log.debug('[%s] display... (%s)' % (self._media_client, len(image_data)))
+                    # except UnicodeDecodeError as e:
+                    #     self.log.info('[%s] UnicodeDecodeError ' % (self._media_client))
+                    #     pass
+                    # except UnidentifiedImageError as e:
+                    #     self.log.info('[%s] UnidentifiedImageError ' % (self._media_client))
                 # time.sleep(0.02)
                 time.sleep(0.01)
             # except socket.timeout as e:
@@ -519,7 +528,7 @@ class RPycKernel(IPythonKernel):
                     while self.result.ready == False:
                         # self.log.info('self.result.ready (%s)' % repr(self.result.ready))
                         time.sleep(0.001) # print(end='')
-                    time.sleep(0.2)
+                    time.sleep(1)
                     # with rpyc.classic.redirected_stdio(self.remote):
                     #     self.remote_exec(code)
 
