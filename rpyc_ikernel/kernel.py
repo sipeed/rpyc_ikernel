@@ -174,7 +174,7 @@ class MjpgSocket():
     def unit_test(self):
         try:
             url = "http://127.0.0.1:18811"
-            with urllib.request.urlopen(url, timeout = 1) as stream:
+            with urllib.request.urlopen(url, timeout = 3) as stream:
                 boundary = self.open_mjpeg_stream(stream)
                 while True:
                     tmp = self.read_mjpeg_frame(stream, boundary)
@@ -186,7 +186,7 @@ class MjpgSocket():
 
     def __init__(self, url: str):
         self._url = url
-        self.stream = urllib.request.urlopen(url, timeout = 1)
+        self.stream = urllib.request.urlopen(url, timeout = 9)
         self.boundary = self.open_mjpeg_stream(self.stream)
 
     def iter_content(self):

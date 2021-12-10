@@ -6,6 +6,11 @@
 [![MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 [![PyPI version](https://badge.fury.io/py/rpyc-ikernel.svg)](https://badge.fury.io/py/rpyc-ikernel)
 
+## Kernel installation
+
+- pip install rpyc_ikernel
+- python -m rpyc_ikernel.install
+
 ![index.png](./images/index.png)
 
 ## Kernel introduction
@@ -80,6 +85,8 @@ After the above package is installed, enter `jupyter notebook` to start the serv
 If you don't see it, you can enter `python3 -m rpyc_ikernel.install` to complete the kernel installation, and you can see it now.
 
 ### On Windows
+
+enter `python -m rpyc_ikernel.install` to complete the kernel installation.
 
 If there are the following common errors that cannot find modules, they are common in py2 and py3 environments. Please confirm whether the system environment variable is python / pip command.
 
