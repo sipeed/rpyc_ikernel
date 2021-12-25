@@ -55,7 +55,7 @@ class ADB():
         case that we do not need to restart the adb while we re-initial it, so
         we set the global flag 'NEED_RESTART_ADB' to False.
         '''
-        adb_shell_args_test = ['whoami']
+        adb_shell_args_test = ['uname']
         ret = self.run_shell_cmd(adb_shell_args_test)
         if ret is None or len(ret) == 0:
             self.try_times += 1
@@ -105,6 +105,9 @@ class ADB():
             return ret
 
         if sys.platform.startswith('win'):
+            exe_path = os.getcwd() + "\\adb\\adb.exe"
+            if os.path.isfile(exe_path):
+                self.__adb_path = exe_path
             ret = self.__adb_path + " "
             if self.__target is not None:
                 ret += "-s " + self.__target + " "

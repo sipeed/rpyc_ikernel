@@ -345,8 +345,7 @@ class RPycKernel(IPythonKernel):
 
 
     def do_reconnect(self):
-        for i in range(6):
-            time.sleep(1)
+        for i in range(5):
             try:
                 import sys
                 self.remote = rpyc.classic.connect(self.address)
@@ -361,15 +360,16 @@ class RPycKernel(IPythonKernel):
             except Exception as e:
                 self.remote = None
                 # self.log.debug('%s on Remote IP: %s' % (repr(e), self.address))
-                print("[ rpyc-kernel ]( Connect IP: %s ...)" % (self.address))
+                print("[ rpyc-kernel ]( Connect IP: %s at %s)" % (self.address, time.asctime()))
+            time.sleep(2)
         print("[ rpyc-kernel ]( Connect IP: %s fail! )" % (self.address))
         try:
             if(adb.connect_check()):
                 adb.kill_server() # maybe other usage
         except Exception as e:
             self.log.info("[ rpyc-kernel ]( adb %s )" % (str(e)))
-        import sys
-        sys.exit()
+        # import sys
+        # sys.exit()
 
     def check_connect(self):
         if self.remote:
@@ -536,7 +536,7 @@ class RPycKernel(IPythonKernel):
                     while self.result.ready == False:
                         # self.log.info('self.result.ready (%s)' % repr(self.result.ready))
                         time.sleep(0.001) # print(end='')
-                    time.sleep(0.2)
+                    # time.sleep(0.2)
                     # with rpyc.classic.redirected_stdio(self.remote):
                     #     self.remote_exec(code)
 
