@@ -21,7 +21,6 @@ import _thread
 import socket
 
 from PIL import Image # , UnidentifiedImageError
-import requests
 import rpyc
 
 try:
@@ -194,67 +193,68 @@ class MjpgSocket():
             yield self.read_mjpeg_frame(self.stream, self.boundary)
 
 
-class MjpgReader():
-    """
-    MJPEG format
+# import requests
+# class MjpgReader():
+#     """
+#     MJPEG format
 
-    Content-Type: multipart/x-mixed-replace; boundary=--BoundaryString
-    --BoundaryString
-    Content-type: image/jpg
-    Content-Length: 12390
+#     Content-Type: multipart/x-mixed-replace; boundary=--BoundaryString
+#     --BoundaryString
+#     Content-type: image/jpg
+#     Content-Length: 12390
 
-    ... image-data here ...
+#     ... image-data here ...
 
 
-    --BoundaryString
-    Content-type: image/jpg
-    Content-Length: 12390
+#     --BoundaryString
+#     Content-type: image/jpg
+#     Content-Length: 12390
 
-    ... image-data here ...
-    """
+#     ... image-data here ...
+#     """
 
-    def __init__(self, url: str):
-        self._url = url
-        self.session = requests.Session()
+#     def __init__(self, url: str):
+#         self._url = url
+#         self.session = requests.Session()
 
-    def iter_content(self):
-        """
-        Raises:
-            RuntimeError
-        """
+#     def iter_content(self):
+#         """
+#         Raises:
+#             RuntimeError
+#         """
 
-        r = self.session.get(self._url, stream=True, timeout=3)
-        # r = requests.get(self._url, stream=True, timeout=3)
+#         r = self.session.get(self._url, stream=True, timeout=3)
+#         # r = requests.get(self._url, stream=True, timeout=3)
 
-        # parse boundary
-        content_type = r.headers['content-type']
-        index = content_type.rfind("boundary=")
-        assert index != 1
-        boundary = content_type[index+len("boundary="):] + "\r\n"
-        boundary = boundary.encode('utf-8')
+#         # parse boundary
+#         content_type = r.headers['content-type']
+#         index = content_type.rfind("boundary=")
+#         assert index != 1
+#         boundary = content_type[index+len("boundary="):] + "\r\n"
+#         boundary = boundary.encode('utf-8')
 
-        rd = io.BufferedReader(r.raw)
-        while True:
-            self._skip_to_boundary(rd, boundary)
-            length = self._parse_length(rd)
-            yield rd.read(length)
+#         rd = io.BufferedReader(r.raw)
+#         while True:
+#             self._skip_to_boundary(rd, boundary)
+#             length = self._parse_length(rd)
+#             yield rd.read(length)
 
-    def _parse_length(self, rd) -> int:
-        length = 0
-        while True:
-            line = rd.readline()
-            if line == b'\r\n':
-                return length
-            if line.startswith(b"Content-Length"):
-                length = int(line.decode('utf-8').split(": ")[1])
-                assert length > 0
+#     def _parse_length(self, rd) -> int:
+#         length = 0
+#         while True:
+#             line = rd.readline()
+#             if line == b'\r\n':
+#                 return length
+#             if line.startswith(b"Content-Length"):
+#                 length = int(line.decode('utf-8').split(": ")[1])
+#                 assert length > 0
 
-    def _skip_to_boundary(self, rd, boundary: bytes):
-        for _ in range(10):
-            if boundary in rd.readline():
-                break
-        else:
-            raise RuntimeError("Boundary not detected:", boundary)
+#     def _skip_to_boundary(self, rd, boundary: bytes):
+#         for _ in range(10):
+#             if boundary in rd.readline():
+#                 break
+#         else:
+#             raise RuntimeError("Boundary not detected:", boundary)
 
 ########################################################################################################################################
 

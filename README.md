@@ -11,7 +11,7 @@
 - pip install rpyc_ikernel
 - python -m rpyc_ikernel.install
 
-![index.png](./images/index.png)
+![index.png](./tests/images/index.png)
 
 ## Kernel introduction
 
@@ -80,7 +80,7 @@ pip3 install -i https://pypi.tuna.tsinghua.edu.cn/simple rpyc_ikernel && python3
 
 After the above package is installed, enter `jupyter notebook` to start the service. After startup, the system default browser will be opened automatically (recommended foreign Google browser or domestic 360 speed browser), please select the kernel of rpyc and create a new (new) designation The code file of the kernel.
 
-![kernels.png](./images/kernels.png)
+![kernels.png](./tests/images/kernels.png)
 
 If you don't see it, you can enter `python3 -m rpyc_ikernel.install` to complete the kernel installation, and you can see it now.
 
