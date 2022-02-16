@@ -343,11 +343,12 @@ class RPycKernel(IPythonKernel):
         # self.do_reconnect()
         # bind_rpycs()
 
-
+        
     def do_reconnect(self):
+        global adb
+        import sys
         for i in range(5):
             try:
-                import sys
                 self.remote = rpyc.classic.connect(self.address)
                 self.remote.modules.sys.stdin = sys.stdin
                 self.remote.modules.sys.stdout = sys.stdout
@@ -363,11 +364,12 @@ class RPycKernel(IPythonKernel):
                 print("[ rpyc-kernel ]( Connect IP: %s at %s)" % (self.address, time.asctime()))
             time.sleep(2)
         print("[ rpyc-kernel ]( Connect IP: %s fail! )" % (self.address))
-        try:
-            if(adb.connect_check()):
-                adb.kill_server() # maybe other usage
-        except Exception as e:
-            self.log.info("[ rpyc-kernel ]( adb %s )" % (str(e)))
+        if sys.platform.startswith('win'):
+            try:
+                if adb.connect_check():
+                    adb.kill_server()
+            except Exception as e:
+                self.log.info("[ rpyc-kernel ]( adb %s )" % (str(e)))
         # import sys
         # sys.exit()
 

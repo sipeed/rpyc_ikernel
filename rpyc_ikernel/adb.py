@@ -34,6 +34,11 @@ class ADB():
 
     def __init__(self, adb_path='adb', device=None):
         self.__adb_path = adb_path
+        if sys.platform.startswith('win'):
+            exe_path = os.getcwd() + "\\adb\\adb.exe"
+            # print(self.__adb_path, exe_path)
+            if os.path.isfile(exe_path):
+                self.__adb_path = exe_path
 
         if device:
             self.set_target_device(device)
@@ -517,14 +522,16 @@ def bind_rpycs():
         import time
         for i in range(3):
             adb.run_shell_cmd("ps | grep 'from maix import mjpg;mjpg.start();' | awk '{print $1}'")
-            tmp = (adb.get_output().decode())
-            tmp = tmp.replace('\r', '')
-            res = tmp.split('\n')
-            # filter(None, res)
-            res = [x for x in res if x != '']
-            # print(i, len(res), res) # exist server
-            if (len(res) > 1):
-                return True
+            res = adb.get_output()
+            if res:
+                tmp = (res.decode())
+                tmp = tmp.replace('\r', '')
+                res = tmp.split('\n')
+                # filter(None, res)
+                res = [x for x in res if x != '']
+                # print(i, len(res), res) # exist server
+                if (len(res) > 1):
+                    return True
 
         # ----
         adb.run_shell_cmd('/etc/init.d/S52ntpd stop')
