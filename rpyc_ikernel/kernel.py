@@ -526,7 +526,7 @@ class RPycKernel(IPythonKernel):
 
                     # self.remote.modules.builtins.exec(code)
 
-                    self.result = self.remote_exec(code)
+                    self.result = self.remote_exec(code, self.remote.modules.builtins.globals())
                     # self.result.wait()
                     def get_result(result):
                         if result.error:
