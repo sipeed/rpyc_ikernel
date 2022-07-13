@@ -427,7 +427,7 @@ class RPycKernel(IPythonKernel):
                     content = next(self._media_client.iter_content())
                     tmp = Image.open(io.BytesIO(content))
                     buf = io.BytesIO()
-                    tmp.resize((tmp.size[0] * 2, tmp.size[1] * 2)).save(buf, format = "JPEG")
+                    tmp.resize((tmp.size[0], tmp.size[1])).save(buf, format = "JPEG")
                     buf.flush()
                     content = buf.getvalue()
                     if self.clear_output:  # used when updating lines printed
