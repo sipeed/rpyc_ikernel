@@ -15,7 +15,6 @@ import logging
 import time
 import traceback
 import urllib.request
-import io
 import re
 import _thread
 import socket
@@ -63,7 +62,7 @@ class MjpgSocket():
         headers like Content-Type and Content-Length which determine the type and
         length of the data portion.
         '''
-        return stream.readline().decode('utf-8').strip()
+        return stream.readline().decode('iso8859-1').strip()
 
 
     def read_headers(self, stream, boundary):
@@ -424,34 +423,38 @@ class RPycKernel(IPythonKernel):
                 if self._media_client != None:
                     # for content in self._media_client.iter_content():
                     #     self.log.info('iter_content... (%s)' % len(content))
-                    content = next(self._media_client.iter_content())
-                    tmp = Image.open(io.BytesIO(content))
-                    buf = io.BytesIO()
-                    tmp.resize((tmp.size[0], tmp.size[1])).save(buf, format = "JPEG")
-                    buf.flush()
-                    content = buf.getvalue()
-                    if self.clear_output:  # used when updating lines printed
-                        self.send_response(self.iopub_socket,
-                                            'clear_output', {"wait": True})
-                    # self.log.debug(content)
-                    image_type = imghdr.what(None, content)
-                    # self.log.debug(image_type)
-                    image_data = base64.b64encode(content).decode('ascii')
-                    # self.log.debug(image_data)
-                    self.send_response(self.iopub_socket, 'display_data', {
-                        'data': {
-                            'image/' + image_type: image_data
-                        },
-                        'metadata': {}
-                    })
+                    try:
+                        content = next(self._media_client.iter_content())
+                        image_type = imghdr.what(None, content)
+                        # import io
+                        # self.log.info(image_type)
+                        # img = io.BytesIO(content)
+                        # Image.open(img)
+                        # tmp = Image.open()
+                        # buf = io.BytesIO()
+                        # tmp.resize((tmp.size[0], tmp.size[1])).save(buf, format = "JPEG")
+                        # buf.flush()
+                        # content = buf.getvalue()
+                        if self.clear_output:  # used when updating lines printed
+                            self.send_response(self.iopub_socket,
+                                                'clear_output', {"wait": True})
+                        # self.log.info(content)
+                        # image_type = imghdr.what(None, content)
+                        # self.log.info(image_type)
+                        image_data = base64.b64encode(content).decode('iso8859-1')
+                        # self.log.info(len(image_data))
+                        self.send_response(self.iopub_socket, 'display_data', {
+                            'data': {
+                                'image/' + image_type: image_data
+                            },
+                            'metadata': {}
+                        })
+                    except Exception as e:
+                        self.log.debug('[%s] Exception %s' % (self._media_client, e))
                     # except UnicodeDecodeError as e:
-                    #     self.log.info('[%s] UnicodeDecodeError ' % (self._media_client))
-                    #     # self._media_client.stream.close()
-                    #     # self._media_client = None
-                    # except UnidentifiedImageError as e:
-                    #     self.log.info('[%s] UnidentifiedImageError ' % (self._media_client))
-                    #     # self._media_client.stream.close()
-                    #     # self._media_client = None
+                    #     self.log.debug('[%s] UnicodeDecodeError %s ' % (self._media_client, e))
+                    except Image.UnidentifiedImageError as e:
+                        self.log.debug('[%s] UnidentifiedImageError %s' % (self._media_client, e))
                     # time.sleep(0.02)
                 time.sleep(0.01)
             # except OSError as e:

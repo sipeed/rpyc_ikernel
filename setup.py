@@ -11,7 +11,7 @@ except ImportError:
 
 setup(
     name="rpyc_ikernel",
-    version="0.4.0",
+    version="0.5.1",
     description="rpyc for jupyter kernel",
     long_description=open('README.md', 'r', encoding='UTF-8').read(),
     long_description_content_type='text/markdown',
