@@ -6,6 +6,8 @@
 [![MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 [![PyPI version](https://badge.fury.io/py/rpyc-ikernel.svg)](https://badge.fury.io/py/rpyc-ikernel)
 
+[中文文档](README_cn.md)
+
 ## Kernel installation
 
 - pip install rpyc_ikernel
